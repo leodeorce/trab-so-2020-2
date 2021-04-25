@@ -30,6 +30,14 @@ void executarForeground(Token* listaTokens)
 		perror("Falha ao executar fork()");
 }
 
+void armageddon(void) {
+
+}
+
+void liberamoita(void) {
+	
+}
+
 int main(void)
 {
 	// system("clear");
@@ -64,6 +72,18 @@ int main(void)
 					}
 					int tamanhoLista = listaTamanho(listaTokens);
 					if(background == 0 && tamanhoLista > 0) {
+						if(tamanhoLista == 1) {
+							if(strcmp(listaGetByIndex(0, listaTokens), "armageddon") == 0) {
+								armageddon();
+								loop = 0;
+								break;
+							}
+							else if(strcmp(listaGetByIndex(0, listaTokens), "liberamoita") == 0) {
+								liberamoita();
+								loop = 0;
+								break;
+							}
+						}
 						if(tamanhoLista <= 4)
 							executarForeground(listaTokens);
 						else {
