@@ -52,7 +52,7 @@ int main(void)
 {
 	// system("clear");
 	char   token[MAX_COMMAND_LENGTH];
-	char   charLido;
+	char   charLido = '\n';
 	int    index = 0;
 	int    loop = 1;
 	int    background = 0;
@@ -162,8 +162,10 @@ int main(void)
 					break;
 			}
 		}
-		
-		return 0;
+
+		listaTokens = listaLibera(listaTokens);
+		token[0] = '\0';
+		// return 0;
 	}
 
 	return 0;
