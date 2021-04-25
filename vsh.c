@@ -62,8 +62,15 @@ int main(void)
 						listaTokens = listaInsere(token, listaTokens);
 						listaImprime(listaTokens);
 					}
-					if(background == 0 && listaIsEmpty(listaTokens) != 1) {
-						executarForeground(listaTokens);
+					int tamanhoLista = listaTamanho(listaTokens);
+					if(background == 0 && tamanhoLista > 0) {
+						if(tamanhoLista <= 4)
+							executarForeground(listaTokens);
+						else {
+							printf("Limite de argumentos para o comando '%s' excedido\n",
+								listaGetByIndex(0, listaTokens));
+							loop = 0;
+						}
 					}
 					loop = 0;
 					break;
