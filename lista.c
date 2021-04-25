@@ -25,7 +25,8 @@ Token* listaInsere(char* texto, Token* lista)
 		while(iterator->proximo != NULL)
 			iterator = iterator->proximo;
 		iterator->proximo = novoToken;
-	} else
+	}
+	else
 		lista = novoToken;
 	return lista;
 }
@@ -41,6 +42,44 @@ Token* listaLibera(Token* lista)
 		P = temp;
 	}
 	return P;
+}
+
+int listaTamanho(Token* lista)
+{
+	Token* P = lista;
+	int contador = 0;
+	while(P != NULL) {
+		contador++;
+		P = P->proximo;
+	}
+	return contador;
+}
+
+char** listaGetTokenArray(Token* lista)
+{
+	if(lista != NULL) {
+		int tamanhoLista = listaTamanho(lista);
+		char** arrayArgumentos = (char**) malloc(tamanhoLista * sizeof(char*) + 1);
+		Token* iterator = lista;
+		for(int i = 0; i < tamanhoLista; i++) {
+			arrayArgumentos[i] = iterator->texto;
+			iterator = iterator->proximo;
+		}
+		arrayArgumentos[tamanhoLista] = NULL;
+		return arrayArgumentos;
+	}
+	else
+		return NULL;
+}
+
+char* listaGetByIndex(int index, Token* lista)
+{
+	Token* P = lista;
+	for(int i = 0; i < index; i++) {
+		if(P == NULL) return NULL;
+		P = P->proximo;
+	}
+	return P->texto;
 }
 
 void listaImprime(Token* lista)
