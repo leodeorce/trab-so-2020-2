@@ -82,6 +82,10 @@ char* listaGetByIndex(int index, Token* lista)
 	return P->texto;
 }
 
+int listaIsEmpty(Token* lista) {
+	return lista == NULL ? 1 : 0;
+}
+
 void listaImprime(Token* lista)
 {
 	Token* P = lista;

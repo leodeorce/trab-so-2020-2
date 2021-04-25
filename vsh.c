@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include "lista.h"
 
@@ -12,8 +13,11 @@ void executarForeground(Token* listaTokens)
 	char** arrayArgumentos = listaGetTokenArray(listaTokens);
 	int wstatus;
 	pid_t pid = fork();
+
 	if(pid == 0) {
-		execvp(arrayArgumentos[0], &arrayArgumentos[1]);
+		signal(SIGUSR1, SIG_IGN);
+		signal(SIGUSR2, SIG_IGN);
+		execvp(arrayArgumentos[0], arrayArgumentos);
 	}
 	else if(pid > 0) {
 		wait(&wstatus);
@@ -58,7 +62,7 @@ int main(void)
 						listaTokens = listaInsere(token, listaTokens);
 						listaImprime(listaTokens);
 					}
-					if(background == 0) {
+					if(background == 0 && listaIsEmpty(listaTokens) != 1) {
 						executarForeground(listaTokens);
 					}
 					loop = 0;
@@ -98,7 +102,7 @@ int main(void)
 			}
 		}
 		
-		return 1;
+		return 0;
 	}
 
 	return 0;

@@ -54,6 +54,13 @@ char** listaGetTokenArray(Token* lista);
  */
 char* listaGetByIndex(int index, Token* lista);
 
+/**
+ * Verifica se a lista encadead está vazia
+ * @param lista A lista encadeada de tokens
+ * @return 1 caso vazia e 0 caso contrário
+ */
+int listaIsEmpty(Token* lista);
+
 void listaImprime(Token* lista);
 
 #endif /* LISTA_H_ */
