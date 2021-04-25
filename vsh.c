@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,12 +34,22 @@ void executarForeground(Token* listaTokens)
 
 void armageddon(void)
 {
-
+	for(int i=0; i<MAX_BACKGROUND; i++){
+		kill(-backgroundPGID[i], SIGKILL);
+	}
+	
+	while(1)
+		if (((waitpid(-1, NULL, 0)) == -1) && (errno == ECHILD))
+			break;
 }
 
 void liberamoita(void)
 {
-	
+	for(int i=0; i<MAX_BACKGROUND; i++){
+		kill(-backgroundPGID[i], SIGCHLD);
+	}
+
+	waitpid(-1, NULL, WNOHANG);
 }
 
 void catchUSR(int num)
@@ -54,6 +65,7 @@ int main(void)
 	system("clear");          // Limpa a tela do terminal atual
 	char   token[MAX_COMMAND_LENGTH];  // Armazena comandos ou argumentos
 	char   charLido = '\n';   // Armazena um caractere lido de stdin
+	int    finalizar = 0;	  // Finaliza a shell
 	int    index = 0;         // Indica a posição em 'token' na qual se deve escrever
 	int    loop = 1;          // Indica se é hora de parar leitura e mostrar o prompt
 	int    background = 0;    // Indica se um operador especial de pipe foi lido
@@ -100,6 +112,7 @@ int main(void)
 		background = 0;     // 'background' em 0 indica que ainda não lemos um '|'
 		qtdeComandos = 0;   // 'qtdeComandos' em 0 indica que ainda não lemos comandos
 
+
 		while(loop == 1) {  // Loop de leitura de caracteres
 
 			scanf("%c", &charLido);
@@ -124,6 +137,7 @@ int main(void)
 							if(strcmp(listaGetByIndex(0, listaTokens), "armageddon") == 0) {
 								armageddon();
 								loop = 0;
+								finalizar = 1;
 								break;
 							}
 							else if(strcmp(listaGetByIndex(0, listaTokens), "liberamoita") == 0) {
@@ -182,6 +196,9 @@ int main(void)
 					break;
 			}
 		}
+
+		if(finalizar == 1)	// Saindo do loop principal da shell
+			break;
 
 		listaTokens = listaLibera(listaTokens);
 		token[0] = '\0';  // Caso um sinal seja recebido e o token não é reiniciado
