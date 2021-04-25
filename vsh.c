@@ -30,12 +30,22 @@ void executarForeground(Token* listaTokens)
 		perror("Falha ao executar fork()");
 }
 
-void armageddon(void) {
+void armageddon(void)
+{
 
 }
 
-void liberamoita(void) {
+void liberamoita(void)
+{
 	
+}
+
+void catchUSR(int num)
+{
+	FILE* fd = fopen("./jacare.txt", "r");
+	char c;
+	while((c = fgetc(fd)) != EOF) printf("%c", c);
+	fclose(fd);
 }
 
 int main(void)
@@ -48,6 +58,30 @@ int main(void)
 	int    background = 0;
 	int    qtdeComandos = 0;
 	Token* listaTokens = listaInicializa();
+
+	struct sigaction act;
+	act.sa_handler = catchUSR;
+	act.sa_flags = 0;
+
+	sigset_t newsigset;
+	if(sigemptyset(&newsigset) == -1
+	   || sigaddset(&newsigset, SIGINT)
+	   || sigaddset(&newsigset, SIGQUIT)
+	   || sigaddset(&newsigset, SIGTSTP)) {
+		   perror("Falha ao criar máscara de sinais");
+		   exit(1);
+	   }
+	
+	act.sa_mask = newsigset;
+
+	if(sigaction(SIGUSR1, &act, NULL) == -1) {
+		perror("Falha ao associar tratador com SIGUSR1");
+		exit(1);
+	}
+	if(sigaction(SIGUSR2, &act, NULL) == -1) {
+		perror("Falha ao associar tratador com SIGUSR2");
+		return 1;
+	}
 
 	while(1) {
 
