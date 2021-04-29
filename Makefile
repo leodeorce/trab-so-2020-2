@@ -6,5 +6,8 @@ comp: vsh.c lista.c
 run:
 	./vsh
 
+run-v:
+	valgrind -s --leak-check=full --show-leak-kinds=all ./vsh
+
 clean:
 	rm -f vsh

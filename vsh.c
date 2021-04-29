@@ -9,6 +9,9 @@
 
 #define MAX_COMMAND_LENGTH 2097152
 
+/**
+ *  Executa um comando em foreground
+ */
 void executarForeground(Token* listaTokens)
 {
 	// Cria array com os elementos a serem passados para execvp()
@@ -22,9 +25,11 @@ void executarForeground(Token* listaTokens)
 		execvp(arrayArgumentos[0], arrayArgumentos);
 	}
 	else if(pid > 0) {  // Caso pai
+		free(arrayArgumentos);
 		wait(&wstatus);
 		if (WIFEXITED(wstatus) > 0)
-			printf("Filho retornou com código %d\n", WEXITSTATUS(wstatus));
+			if(WEXITSTATUS(wstatus) != 0)
+				printf("Filho retornou com código %d\n", WEXITSTATUS(wstatus));
 		if (WIFSIGNALED(wstatus) > 0)
 			printf("Filho terminou ao receber o sinal %d\n", WTERMSIG(wstatus));
 	}
@@ -32,26 +37,35 @@ void executarForeground(Token* listaTokens)
 		perror("Falha ao executar fork()");
 }
 
+/**
+ *  Termina os descentes
+ */
 void armageddon(void)
 {
-	for(int i=0; i<MAX_BACKGROUND; i++){
-		kill(-backgroundPGID[i], SIGKILL);
-	}
+	// for(int i = 0; i < MAX_BACKGROUND; i++) {
+	// 	kill(-backgroundPGID[i], SIGKILL);
+	// }
 	
-	while(1)
-		if (((waitpid(-1, NULL, 0)) == -1) && (errno == ECHILD))
-			break;
+	// while(1)
+	// 	if(((waitpid(-1, NULL, 0)) == -1) && (errno == ECHILD))
+	// 		break;
 }
 
+/**
+ *  Libera descendentes zumbis
+ */
 void liberamoita(void)
 {
-	for(int i=0; i<MAX_BACKGROUND; i++){
-		kill(-backgroundPGID[i], SIGCHLD);
-	}
+	// for(int i = 0; i < MAX_BACKGROUND; i++) {
+	// 	kill(-backgroundPGID[i], SIGCHLD);
+	// }
 
-	waitpid(-1, NULL, WNOHANG);
+	// waitpid(-1, NULL, WNOHANG);
 }
 
+/**
+ *  Handler para os sinais SIGUSR1 e SIGUSR2 na shell
+ */
 void catchUSR(int num)
 {
 	FILE* fd = fopen("./jacare.txt", "r");
@@ -60,22 +74,34 @@ void catchUSR(int num)
 	fclose(fd);
 }
 
+/**
+ *  Leitura do restante de uma entrada em stdin caso erro seja encontrado
+ */
+void resetarEntrada(void) {
+	char c;
+	while(c != '\n') scanf("%c", &c);
+}
+
 int main(void)
 {
-	system("clear");          // Limpa a tela do terminal atual
+	// system("clear");          // Limpa a tela do terminal atual
 	char   token[MAX_COMMAND_LENGTH];  // Armazena comandos ou argumentos
 	char   charLido = '\n';   // Armazena um caractere lido de stdin
 	int    finalizar = 0;	  // Finaliza a shell
-	int    index = 0;         // Indica a posição em 'token' na qual se deve escrever
+	int    indexToken = 0;    // Indica a posição em 'token' na qual se deve escrever
 	int    loop = 1;          // Indica se é hora de parar leitura e mostrar o prompt
 	int    background = 0;    // Indica se um operador especial de pipe foi lido
 	int    qtdeComandos = 0;  // Quantidade de comandos lidos até o momento
+	int    i = 0;             // Variável auxiliar
 
 	/** A lista é preenchida com 'tokens' referentes ao comando passado por stdin.
 	 *  O primeiro elemento da lista é sempre o nome do comando e os próximos são
 	 *  seus argumentos. A lista é esvaziada sempre que um operador especial '|' é
 	 *  detectado ou o final da linha é alcançado. */
 	Token* listaTokens = listaInicializa();
+
+	// Armazena listas de comandos a serem executados em background
+	Token* grupoBackground[5] = { NULL };
 
 	// Inicializa nova estrutura sigaction com o handler 'catchUSR'
 	struct sigaction act;
@@ -107,11 +133,11 @@ int main(void)
 	while(1) {  // Loop do prompt
 
 		printf("vsh> ");
-		index = 0;          // 'index' em 0 indica que token é reescrito
+		indexToken = 0;     // 'indexToken' em 0 indica que token é reescrito
 		loop = 1;           // 'loop' em 1 indica que novos caracteres serão lidos
 		background = 0;     // 'background' em 0 indica que ainda não lemos um '|'
-		qtdeComandos = 0;   // 'qtdeComandos' em 0 indica que ainda não lemos comandos
-
+		qtdeComandos = 0;   /* 'qtdeComandos' em 0 indica que ainda não terminamos
+                               de ler o primeiro comando */
 
 		while(loop == 1) {  // Loop de leitura de caracteres
 
@@ -121,12 +147,16 @@ int main(void)
 
 				// Mesmo código para '\n' e '\r'
 				case '\n':
-				case '\r':
 					if(strlen(token) > 0) {  /* Se existirem espaços antes da
                                                 quebra de linha, 'token' estará vazio. */
 						printf(">%s<\n", token);  // Debug
 						listaTokens = listaInsere(token, listaTokens);
 						listaImprime(listaTokens);  // Debug
+					}
+					if(listaIsEmpty(listaTokens) == 1 && background == 1) {
+						printf("Erro: não há comando após último operador '|'\n");
+						loop = 0;
+						break;
 					}
 					int tamanhoLista = listaTamanho(listaTokens);
 					// Verifica se o comando a executar é foreground ou background
@@ -150,10 +180,16 @@ int main(void)
                                                   a quantidade de argumentos é maior que 3. */
 							executarForeground(listaTokens);
 						else {
-							printf("Limite de argumentos para o comando '%s' excedido\n",
+							printf("Erro: limite de argumentos para o comando '%s' excedido\n",
 								listaGetByIndex(0, listaTokens));
 							loop = 0;
+							break;
 						}
+					}
+					else if(background == 1) {
+						// Adiciona a última lista no grupo de comandos em background
+						grupoBackground[qtdeComandos] = listaTokens;
+						printf("Executando comandos em background\n");  // Placeholder
 					}
 					loop = 0;
 					break;
@@ -161,48 +197,53 @@ int main(void)
 				case '|':
 					if(strlen(token) > 0) {  /* Se o token não está vazio, então o operador
                                                 especial foi encontrado no meio de uma palavra */
-						printf("Símbolo '|' inesperado\n");
+						printf("Erro: símbolo '|' inesperado\n");
+						resetarEntrada();
 						loop = 0;
+						break;
 					}
-					else {
-						background = 1;  // As próximas execuções devem ser em background
-						qtdeComandos++;
-						if(qtdeComandos >= 5) {
-							printf("Favor inserir no máximo 5 comandos\n");
-							loop = 0;
-						}
-						listaImprime(listaTokens);  // Debug
-
-						// Provavelmente aqui é necessário guardar múltiplas listas
-
-						listaTokens = listaLibera(listaTokens);
+					background = 1;  // As próximas execuções devem ser em background
+					qtdeComandos++;
+					if(qtdeComandos >= 5) {
+						printf("Erro: favor inserir no máximo 5 comandos\n");
+						resetarEntrada();
+						loop = 0;
+						break;
 					}
+					listaImprime(listaTokens);  // Debug
+					grupoBackground[qtdeComandos - 1] = listaTokens;
+					listaTokens = listaInicializa();
 					break;
 
 				case ' ':
-					index = 0;  // Um token foi finalizado
+					indexToken = 0;  // Um token foi finalizado
 					if(strlen(token) > 0) {  /* Se o token finalizado não é vazio
                                                 então ele deve ser inserido na lista */
 						printf(">%s<\n", token);  // Debug
 						listaTokens = listaInsere(token, listaTokens);
 						listaImprime(listaTokens);  // Debug
 					}
-					token[index] = '\0';  // Reinicia o token
+					token[indexToken] = '\0';  // Reinicia o token
 					break;
 
 				default:
-					token[index++] = charLido;
-					token[index] = '\0';
+					token[indexToken++] = charLido;
+					token[indexToken] = '\0';
 					break;
 			}
 		}
 
-		if(finalizar == 1)	// Saindo do loop principal da shell
-			break;
+		listaTokens = listaInicializa();  // Reinicia a lista auxiliar
+		i = 0;
 
-		listaTokens = listaLibera(listaTokens);
+		while(grupoBackground[i++] != NULL) // Libera todas as listas de comandos background
+			grupoBackground[i - 1] = listaLibera(grupoBackground[i - 1]);
+
 		token[0] = '\0';  // Caso um sinal seja recebido e o token não é reiniciado
 		// return 0;
+
+		if(finalizar == 1)	// Saindo do loop principal da shell
+			break;
 	}
 
 	return 0;

@@ -59,7 +59,7 @@ char** listaGetTokenArray(Token* lista)
 {
 	if(lista != NULL) {
 		int tamanhoLista = listaTamanho(lista);
-		char** arrayArgumentos = (char**) malloc(tamanhoLista * sizeof(char*) + 1);
+		char** arrayArgumentos = (char**) malloc((tamanhoLista + 1) * sizeof(char*));
 		Token* iterator = lista;
 		for(int i = 0; i < tamanhoLista; i++) {
 			arrayArgumentos[i] = iterator->texto;
