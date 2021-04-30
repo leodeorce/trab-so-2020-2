@@ -9,6 +9,9 @@
 
 #define MAX_COMMAND_LENGTH 2097152
 
+#define LEITURA 0
+#define ESCRITA 1
+
 /**
  *  Executa um comando em foreground
  */
@@ -38,6 +41,95 @@ void executarForeground(Token* listaTokens)
 }
 
 /**
+ *  Executa os comandos em background
+ */
+void executaBackground(Token** grupoBackground, int indexListas)
+{
+	int wstatus;
+	int numComandos = indexListas;
+	pid_t pid = fork();
+
+	// TODO: CRIAR backgroundPGID[i] MAS AO MANIPULAR, LEMBRAR DA CONDIÇÃO DE CORRIDA
+
+	// TODO: TRANSFORMAR OS TOKENS EM UM STRING
+
+	if(pid == 0){ // Caso filho
+		
+		int pid1, pid2, pid3, pid4, pid5;
+		int fd[5][2];
+		if(pipe(fd[0]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
+		if(pipe(fd[1]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
+		if(pipe(fd[2]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
+		if(pipe(fd[3]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
+		if(pipe(fd[4]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
+
+		setsid();
+
+		// TODO: backgroundPGID[i] = getpgid()
+
+		pid1 = fork();
+		if(pid1 == 0){  // Primeiro comando
+			close(fd[0][LEITURA]);
+			dup2(fd[0][ESCRITA], 1);
+			execvp(grupoBackground[0], grupoBackground); // MUDAR TODO 2
+		}
+		numComandos--;
+
+		pid2 = fork();
+		if(pid2 == 0){  // Segundo comando
+			close(fd[0][ESCRITA]);
+			close(fd[1][LEITURA]);
+			dup2(fd[0][LEITURA], 0);
+			dup2(fd[1][ESCRITA], 1);
+			execvp(grupoBackground[1], grupoBackground); // MUDAR TODO 2
+		}
+		numComandos--;
+
+		if(numComandos > 0){
+			// numComandos--; ???
+			pid3 = fork();
+			if(pid3 == 0){  // Terceiro comando, se houver
+				close(fd[0][ESCRITA]);
+				close(fd[1][LEITURA]);
+				dup2(fd[0][LEITURA], 0);
+				dup2(fd[1][ESCRITA], 1);
+				execvp(grupoBackground[2], grupoBackground); // MUDAR TODO 2
+			}
+			numComandos--;
+		}
+
+		if(numComandos > 0){
+			pid4 = fork();
+			if(pid4 == 0){  // Quarto comando, se houver
+				close(fd[0][ESCRITA]);
+				close(fd[1][LEITURA]);
+				dup2(fd[0][LEITURA], 0);
+				dup2(fd[1][ESCRITA], 1);
+				execvp(grupoBackground[3], grupoBackground); // MUDAR TODO 2
+			}
+			numComandos--;
+		}
+
+		if(numComandos > 0){
+			pid5 = fork();
+			if(pid5 == 0){  // Quinto comando, se houver
+				close(fd[0][ESCRITA]);
+				close(fd[1][LEITURA]);
+				dup2(fd[0][LEITURA], 0);
+				dup2(fd[1][ESCRITA], 1);
+				execvp(grupoBackground[4], grupoBackground); // MUDAR TODO 2
+			}
+			numComandos--;
+		}
+	}
+	else if(pid > 0){ // Caso pai
+
+	}
+	else
+		perror("Falha ao executar fork()");
+}
+
+/**
  *  Termina os descentes
  */
 void armageddon(void)
@@ -45,10 +137,11 @@ void armageddon(void)
 	// for(int i = 0; i < MAX_BACKGROUND; i++) {
 	// 	kill(-backgroundPGID[i], SIGKILL);
 	// }
+	// KILL NUM PGID NAO EXISTENTE DA ERRO?
 	
-	// while(1)
-	// 	if(((waitpid(-1, NULL, 0)) == -1) && (errno == ECHILD))
-	// 		break;
+	while(1)
+		if(((waitpid(-1, NULL, WNOHANG)) == -1) && (errno == ECHILD))
+			break;
 }
 
 /**
@@ -60,7 +153,7 @@ void liberamoita(void)
 	// 	kill(-backgroundPGID[i], SIGCHLD);
 	// }
 
-	// waitpid(-1, NULL, WNOHANG);
+	waitpid(-1, NULL, WNOHANG);
 }
 
 /**
@@ -149,9 +242,9 @@ int main(void)
 				case '\n':
 					if(strlen(token) > 0) {  /* Se existirem espaços antes da
                                                 quebra de linha, 'token' estará vazio. */
-						printf(">%s<\n", token);  // Debug
+						// printf(">%s<\n", token);  // Debug
 						listaTokens = listaInsere(token, listaTokens);
-						listaImprime(listaTokens);  // Debug
+						// listaImprime(listaTokens);  // Debug
 					}
 					if(listaIsEmpty(listaTokens) == 1 && background == 1) {
 						printf("Erro: não há comando após último operador '|'\n");
@@ -189,7 +282,13 @@ int main(void)
 					else if(background == 1) {
 						// Adiciona a última lista no grupo de comandos em background
 						grupoBackground[qtdeComandos] = listaTokens;
-						printf("Executando comandos em background\n");  // Placeholder
+						// printf("Executando comandos em background: ");  // Placeholder
+						// for(int x=0; x<=qtdeComandos; x++){  // Debug
+						// 	listaImprime(grupoBackground[x]);
+						// 	printf("\n");
+						// }
+						// printf("\n");
+						executaBackground(grupoBackground, qtdeComandos);
 					}
 					loop = 0;
 					break;
@@ -203,15 +302,17 @@ int main(void)
 						break;
 					}
 					background = 1;  // As próximas execuções devem ser em background
-					qtdeComandos++;
-					if(qtdeComandos >= 5) {
+					// qtdeComandos++;
+					if(qtdeComandos >= 4) {
 						printf("Erro: favor inserir no máximo 5 comandos\n");
 						resetarEntrada();
 						loop = 0;
 						break;
 					}
-					listaImprime(listaTokens);  // Debug
-					grupoBackground[qtdeComandos - 1] = listaTokens;
+					// listaImprime(listaTokens);  // Debug
+					// grupoBackground[qtdeComandos - 1] = listaTokens;
+					grupoBackground[qtdeComandos] = listaTokens;
+					qtdeComandos++;
 					listaTokens = listaInicializa();
 					break;
 
@@ -219,9 +320,9 @@ int main(void)
 					indexToken = 0;  // Um token foi finalizado
 					if(strlen(token) > 0) {  /* Se o token finalizado não é vazio
                                                 então ele deve ser inserido na lista */
-						printf(">%s<\n", token);  // Debug
+						// printf(">%s<\n", token);  // Debug
 						listaTokens = listaInsere(token, listaTokens);
-						listaImprime(listaTokens);  // Debug
+						// listaImprime(listaTokens);  // Debug
 					}
 					token[indexToken] = '\0';  // Reinicia o token
 					break;

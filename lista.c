@@ -90,7 +90,8 @@ void listaImprime(Token* lista)
 {
 	Token* P = lista;
 	while(P != NULL) {
-		printf ("texto: >%s<\n", P->texto);
+		// printf ("texto: >%s<\n", P->texto);
+		printf (" >%s< ", P->texto);
 		P = P->proximo;
 	}
 }
