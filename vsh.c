@@ -43,7 +43,7 @@ void executarForeground(Token* listaTokens)
 /**
  *  Executa os comandos em background
  */
-void executaBackground(Token** grupoBackground, int indexListas)
+void executarBackground(Token** grupoBackground, int indexListas)
 {
 	int wstatus;
 	int numComandos = indexListas;
@@ -288,7 +288,7 @@ int main(void)
 						// 	printf("\n");
 						// }
 						// printf("\n");
-						executaBackground(grupoBackground, qtdeComandos);
+						executarBackground(grupoBackground, qtdeComandos);
 					}
 					loop = 0;
 					break;
