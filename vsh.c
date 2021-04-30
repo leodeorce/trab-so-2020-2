@@ -42,6 +42,8 @@ void executarForeground(Token* listaTokens)
 
 /**
  *  Executa os comandos em background
+ *  @param grupoBackground Array de listas de comandos
+ *  @param indexListas Posição da array com a última lista
  */
 void executarBackground(Token** grupoBackground, int indexListas)
 {
@@ -130,7 +132,7 @@ void executarBackground(Token** grupoBackground, int indexListas)
 }
 
 /**
- *  Termina os descentes
+ *  Termina os descendentes
  */
 void armageddon(void)
 {
@@ -184,7 +186,7 @@ int main(void)
 	int    indexToken = 0;    // Indica a posição em 'token' na qual se deve escrever
 	int    loop = 1;          // Indica se é hora de parar leitura e mostrar o prompt
 	int    background = 0;    // Indica se um operador especial de pipe foi lido
-	int    qtdeComandos = 0;  // Quantidade de comandos lidos até o momento
+	int    indexListas = 0;   // Índice no qual inserir uma lista em 'grupoBackground'
 	int    i = 0;             // Variável auxiliar
 
 	/** A lista é preenchida com 'tokens' referentes ao comando passado por stdin.
@@ -229,7 +231,7 @@ int main(void)
 		indexToken = 0;     // 'indexToken' em 0 indica que token é reescrito
 		loop = 1;           // 'loop' em 1 indica que novos caracteres serão lidos
 		background = 0;     // 'background' em 0 indica que ainda não lemos um '|'
-		qtdeComandos = 0;   /* 'qtdeComandos' em 0 indica que ainda não terminamos
+		indexListas = 0;    /* 'indexListas' em 0 indica que ainda não terminamos
                                de ler o primeiro comando */
 
 		while(loop == 1) {  // Loop de leitura de caracteres
@@ -281,14 +283,14 @@ int main(void)
 					}
 					else if(background == 1) {
 						// Adiciona a última lista no grupo de comandos em background
-						grupoBackground[qtdeComandos] = listaTokens;
+						grupoBackground[indexListas] = listaTokens;
 						// printf("Executando comandos em background: ");  // Placeholder
-						// for(int x=0; x<=qtdeComandos; x++){  // Debug
+						// for(int x=0; x<=indexListas; x++){  // Debug
 						// 	listaImprime(grupoBackground[x]);
 						// 	printf("\n");
 						// }
 						// printf("\n");
-						executarBackground(grupoBackground, qtdeComandos);
+						executarBackground(grupoBackground, indexListas);
 					}
 					loop = 0;
 					break;
@@ -301,18 +303,18 @@ int main(void)
 						loop = 0;
 						break;
 					}
-					background = 1;  // As próximas execuções devem ser em background
-					// qtdeComandos++;
-					if(qtdeComandos >= 4) {
+					background = 1;  // As execuções devem ser em background
+					// indexListas++;
+					if(indexListas >= 4) {
 						printf("Erro: favor inserir no máximo 5 comandos\n");
 						resetarEntrada();
 						loop = 0;
 						break;
 					}
 					// listaImprime(listaTokens);  // Debug
-					// grupoBackground[qtdeComandos - 1] = listaTokens;
-					grupoBackground[qtdeComandos] = listaTokens;
-					qtdeComandos++;
+					// grupoBackground[indexListas - 1] = listaTokens;
+					grupoBackground[indexListas] = listaTokens;
+					indexListas++;
 					listaTokens = listaInicializa();
 					break;
 
