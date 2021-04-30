@@ -79,7 +79,7 @@ void executarBackground(Token** grupoBackground, int indexListas)
 			dup2(fd[0][ESCRITA], 1);
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
-		
+		free(arrayArgumentos);
 
 		arrayArgumentos = listaGetTokenArray(grupoBackground[1]);
 		numComandos--;
@@ -102,6 +102,7 @@ void executarBackground(Token** grupoBackground, int indexListas)
 			
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
+		free(arrayArgumentos);
 
 		if(numComandos > 0){
 			arrayArgumentos = listaGetTokenArray(grupoBackground[2]);
@@ -123,6 +124,7 @@ void executarBackground(Token** grupoBackground, int indexListas)
 
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
+			free(arrayArgumentos);
 		}
 
 		if(numComandos > 0){
@@ -143,6 +145,7 @@ void executarBackground(Token** grupoBackground, int indexListas)
 				
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
+			free(arrayArgumentos);
 		}
 
 		if(numComandos > 0){
@@ -154,23 +157,25 @@ void executarBackground(Token** grupoBackground, int indexListas)
 				dup2(fd[3][LEITURA], 0);
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
+			free(arrayArgumentos);
 		}
 		
-		while(1){  // Loop para prender o intermediario
-			if((waitpid(-1, &wstatus, WNOHANG) == -1) && (errno == ECHILD)){  // Liberando o intermediario
-																			  // caso nao tenha mais processo
-																			  // para terminar
+		while(1){  // Loop para prender o intermediário
+			// Liberando o intermediário caso nao tenha mais processo para terminar
+			if((waitpid(-1, &wstatus, WNOHANG) == -1) && (errno == ECHILD)){
 				break;
 			}
-			if(WIFSIGNALED(wstatus) > 0)
-				if(WTERMSIG(wstatus) == SIGUSR1 || WTERMSIG(wstatus) == SIGUSR2)  // Liberando o intermediario caso
-																				  // algum processo filho tenha recebido
-																				  // SIGUSR1 ou SIGUSR2
+			if(WIFSIGNALED(wstatus) > 0){
+				// Liberando o intermediário caso algum processo filho tenha
+				// recebido SIGUSR1 ou SIGUSR2
+				if(WTERMSIG(wstatus) == SIGUSR1 || WTERMSIG(wstatus) == SIGUSR2){
 					sigusr = 1;
 					break;
+				}
+			}
 		}
 
-		if(sigusr){  // Terminando a sessao caso houver ocorrencia do SIGUSR1 ou do SIGUSR2
+		if(sigusr){  // Terminando a sessão caso houver ocorrência do SIGUSR1 ou do SIGUSR2
 			kill(-getpgid(getpid()), SIGKILL);
 		}
 			
