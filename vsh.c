@@ -87,6 +87,8 @@ void executarBackground(Token** grupoBackground, int indexListas)
 		if(pid2 == 0){  // Segundo comando
 			close(fd[0][ESCRITA]);
 			close(fd[1][LEITURA]);
+			dup2(fd[0][LEITURA], 0);
+
 			if(numComandos != 0){
 				dup2(fd[1][ESCRITA], 1);
 			}
@@ -97,7 +99,7 @@ void executarBackground(Token** grupoBackground, int indexListas)
 				close(fd[3][LEITURA]);
 				close(fd[3][ESCRITA]);
 			}
-			dup2(fd[0][LEITURA], 0);
+			
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
 
@@ -109,6 +111,7 @@ void executarBackground(Token** grupoBackground, int indexListas)
 				close(fd[1][ESCRITA]);
 				close(fd[2][LEITURA]);
 				dup2(fd[1][LEITURA], 0);
+
 				if(numComandos != 0){
 					dup2(fd[2][ESCRITA], 1);
 				}
@@ -117,6 +120,7 @@ void executarBackground(Token** grupoBackground, int indexListas)
 					close(fd[3][LEITURA]);
 					close(fd[3][ESCRITA]);
 				}
+
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 		}
@@ -129,12 +133,14 @@ void executarBackground(Token** grupoBackground, int indexListas)
 				close(fd[2][ESCRITA]);
 				close(fd[3][LEITURA]);
 				dup2(fd[2][LEITURA], 0);
+
 				if(numComandos != 0){
 					dup2(fd[3][ESCRITA], 1);
 				}
 				else {
 					close(fd[3][ESCRITA]);
 				}
+				
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 		}
@@ -151,9 +157,9 @@ void executarBackground(Token** grupoBackground, int indexListas)
 		}
 		
 		while(1){  // Loop para prender o intermediario
-			if((waitpid(-1, &wstatus, 0) == -1) && (errno == ECHILD)){  // Liberando o intermediario
-																		// caso nao tenha mais processo
-																		// para terminar
+			if((waitpid(-1, &wstatus, WNOHANG) == -1) && (errno == ECHILD)){  // Liberando o intermediario
+																			  // caso nao tenha mais processo
+																			  // para terminar
 				break;
 			}
 			if(WIFSIGNALED(wstatus) > 0)
