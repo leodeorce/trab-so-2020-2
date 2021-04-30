@@ -47,84 +47,108 @@ void executarForeground(Token* listaTokens)
  */
 void executarBackground(Token** grupoBackground, int indexListas)
 {
-	int wstatus;
 	int numComandos = indexListas;
+	char** arrayArgumentos;
 	pid_t pid = fork();
 
 	// TODO: CRIAR backgroundPGID[i] MAS AO MANIPULAR, LEMBRAR DA CONDIÇÃO DE CORRIDA
 
-	// TODO: TRANSFORMAR OS TOKENS EM UM STRING
+	// TODO: TESTAR SE SETSID() ALTERA ALGUM PPID
 
-	if(pid == 0){ // Caso filho
+	// TODO: SETAR OS HANDLERS DE SINAIS CORRETAMENTE
+
+	// TODO: RECEBER O SINAL DOS FILHOS DO INTERMEDIARIO PELO WAIT E VERIFICAR SE WIFEXITSTATUS RETORNOU ALGUEM TERMINADO (SIGUSR1 E SIGUSR2)
+
+	if(pid == 0){ // Caso processo intermediário da sessão
 		
 		int pid1, pid2, pid3, pid4, pid5;
-		int fd[5][2];
+		int wstatus;
+		int sigusr = 0;
+		int fd[4][2];
+
 		if(pipe(fd[0]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[1]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[2]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[3]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
-		if(pipe(fd[4]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
-
+		
 		setsid();
 
 		// TODO: backgroundPGID[i] = getpgid()
 
+		arrayArgumentos = listaGetTokenArray(grupoBackground[0]);
 		pid1 = fork();
 		if(pid1 == 0){  // Primeiro comando
 			close(fd[0][LEITURA]);
 			dup2(fd[0][ESCRITA], 1);
-			execvp(grupoBackground[0], grupoBackground); // MUDAR TODO 2
+			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
 		numComandos--;
 
+		arrayArgumentos = listaGetTokenArray(grupoBackground[1]);
 		pid2 = fork();
 		if(pid2 == 0){  // Segundo comando
 			close(fd[0][ESCRITA]);
 			close(fd[1][LEITURA]);
 			dup2(fd[0][LEITURA], 0);
 			dup2(fd[1][ESCRITA], 1);
-			execvp(grupoBackground[1], grupoBackground); // MUDAR TODO 2
+			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
 		numComandos--;
 
 		if(numComandos > 0){
+			arrayArgumentos = listaGetTokenArray(grupoBackground[2]);
 			// numComandos--; ???
 			pid3 = fork();
 			if(pid3 == 0){  // Terceiro comando, se houver
-				close(fd[0][ESCRITA]);
-				close(fd[1][LEITURA]);
-				dup2(fd[0][LEITURA], 0);
-				dup2(fd[1][ESCRITA], 1);
-				execvp(grupoBackground[2], grupoBackground); // MUDAR TODO 2
+				close(fd[1][ESCRITA]);
+				close(fd[2][LEITURA]);
+				dup2(fd[1][LEITURA], 0);
+				dup2(fd[2][ESCRITA], 1);
+				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 			numComandos--;
 		}
 
 		if(numComandos > 0){
+			arrayArgumentos = listaGetTokenArray(grupoBackground[3]);
 			pid4 = fork();
 			if(pid4 == 0){  // Quarto comando, se houver
-				close(fd[0][ESCRITA]);
-				close(fd[1][LEITURA]);
-				dup2(fd[0][LEITURA], 0);
-				dup2(fd[1][ESCRITA], 1);
-				execvp(grupoBackground[3], grupoBackground); // MUDAR TODO 2
+				close(fd[2][ESCRITA]);
+				close(fd[3][LEITURA]);
+				dup2(fd[2][LEITURA], 0);
+				dup2(fd[3][ESCRITA], 1);
+				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 			numComandos--;
 		}
 
 		if(numComandos > 0){
+			arrayArgumentos = listaGetTokenArray(grupoBackground[4]);
 			pid5 = fork();
 			if(pid5 == 0){  // Quinto comando, se houver
-				close(fd[0][ESCRITA]);
-				close(fd[1][LEITURA]);
-				dup2(fd[0][LEITURA], 0);
-				dup2(fd[1][ESCRITA], 1);
-				execvp(grupoBackground[4], grupoBackground); // MUDAR TODO 2
+				close(fd[3][ESCRITA]);
+				dup2(fd[3][LEITURA], 0);
+				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 			numComandos--;
 		}
+		
+		while(1){
+			if((waitpid(-1, &wstatus, 0) == -1) && (errno == ECHILD)){
+				break;
+			}
+			if(WIFSIGNALED(wstatus) > 0)
+				if(WTERMSIG(wstatus) == SIGUSR1 || WTERMSIG(wstatus) == SIGUSR2)
+					sigusr = 1;
+					break;
+		}
+
+		if(sigusr){
+			kill(-getpgid(getpid()), SIGKILL);
+		}
+			
 	}
-	else if(pid > 0){ // Caso pai
+	else if(pid > 0){  // Caso pai
 
 	}
 	else
@@ -139,7 +163,10 @@ void armageddon(void)
 	// for(int i = 0; i < MAX_BACKGROUND; i++) {
 	// 	kill(-backgroundPGID[i], SIGKILL);
 	// }
-	// KILL NUM PGID NAO EXISTENTE DA ERRO?
+
+	// TODO: KILL NUM PGID NAO EXISTENTE DA ERRO?
+
+	// TODO: PRECISA MESMO DESSE VETOR?
 	
 	while(1)
 		if(((waitpid(-1, NULL, WNOHANG)) == -1) && (errno == ECHILD))
@@ -154,6 +181,8 @@ void liberamoita(void)
 	// for(int i = 0; i < MAX_BACKGROUND; i++) {
 	// 	kill(-backgroundPGID[i], SIGCHLD);
 	// }
+
+	// TODO: PRECISA MESMO DESSE VETOR?
 
 	waitpid(-1, NULL, WNOHANG);
 }
