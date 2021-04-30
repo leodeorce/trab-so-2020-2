@@ -246,7 +246,6 @@ int main(void)
 	int    loop = 1;          // Indica se é hora de parar leitura e mostrar o prompt
 	int    background = 0;    // Indica se um operador especial de pipe foi lido
 	int    indexListas = 0;   // Índice no qual inserir uma lista em 'grupoBackground'
-	int    i = 0;             // Variável auxiliar
 
 	/** A lista é preenchida com 'tokens' referentes ao comando passado por stdin.
 	 *  O primeiro elemento da lista é sempre o nome do comando e os próximos são
@@ -299,7 +298,6 @@ int main(void)
 
 			switch(charLido) {
 
-				// Mesmo código para '\n' e '\r'
 				case '\n':
 					if(strlen(token) > 0) {  /* Se existirem espaços antes da
                                                 quebra de linha, 'token' estará vazio. */
@@ -363,7 +361,7 @@ int main(void)
 						break;
 					}
 					background = 1;  // As execuções devem ser em background
-					// indexListas++;
+					// TODO: Checar quantidade de argumentos
 					if(indexListas >= 4) {
 						printf("Erro: favor inserir no máximo 5 comandos\n");
 						resetarEntrada();
@@ -371,7 +369,6 @@ int main(void)
 						break;
 					}
 					// listaImprime(listaTokens);  // Debug
-					// grupoBackground[indexListas - 1] = listaTokens;
 					grupoBackground[indexListas] = listaTokens;
 					indexListas++;
 					listaTokens = listaInicializa();
@@ -395,11 +392,15 @@ int main(void)
 			}
 		}
 
-		listaTokens = listaInicializa();  // Reinicia a lista auxiliar
-		i = 0;
+		if(background == 1) {
+			for(int i = 0; i <= indexListas; i++) {
+				grupoBackground[i] = listaLibera(grupoBackground[i]);
+			}
+		}
+		else
+			listaTokens = listaLibera(listaTokens);
 
-		while(grupoBackground[i++] != NULL) // Libera todas as listas de comandos background
-			grupoBackground[i - 1] = listaLibera(grupoBackground[i - 1]);
+		listaTokens = listaInicializa();  // Reinicia a lista auxiliar
 
 		token[0] = '\0';  // Caso um sinal seja recebido e o token não é reiniciado
 		// return 0;
