@@ -328,10 +328,10 @@ int main(void)
 								break;
 							}
 						}
-						if(tamanhoLista <= 4)  /* Se a quantidade de tokens é maior que 4,
-                                                  a quantidade de argumentos é maior que 3. */
+						if(tamanhoLista <= 4) {  /* Se a quantidade de tokens é maior que 4,
+                                                    a quantidade de argumentos é maior que 3. */
 							executarForeground(listaTokens);
-						else {
+						} else {
 							printf("Erro: limite de argumentos para o comando '%s' excedido\n",
 								listaGetByIndex(0, listaTokens));
 							loop = 0;
@@ -360,15 +360,21 @@ int main(void)
 						loop = 0;
 						break;
 					}
-					background = 1;  // As execuções devem ser em background
-					// TODO: Checar quantidade de argumentos
 					if(indexListas >= 4) {
 						printf("Erro: favor inserir no máximo 5 comandos\n");
 						resetarEntrada();
 						loop = 0;
 						break;
 					}
+					if(listaTamanho(listaTokens) >= 5) {
+						printf("Erro: limite de argumentos para o comando '%s' excedido\n",
+								listaGetByIndex(0, listaTokens));
+						resetarEntrada();
+						loop = 0;
+						break;
+					}
 					// listaImprime(listaTokens);  // Debug
+					background = 1;  // As execuções devem ser em background
 					grupoBackground[indexListas] = listaTokens;
 					indexListas++;
 					listaTokens = listaInicializa();
@@ -397,9 +403,8 @@ int main(void)
 				grupoBackground[i] = listaLibera(grupoBackground[i]);
 			}
 		}
-		else
-			listaTokens = listaLibera(listaTokens);
 
+		listaTokens = listaLibera(listaTokens);
 		listaTokens = listaInicializa();  // Reinicia a lista auxiliar
 
 		token[0] = '\0';  // Caso um sinal seja recebido e o token não é reiniciado
