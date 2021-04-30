@@ -47,7 +47,7 @@ void executarForeground(Token* listaTokens)
  */
 void executarBackground(Token** grupoBackground, int indexListas)
 {
-	int numComandos = indexListas;
+	int numComandos = indexListas + 1;
 	char** arrayArgumentos;
 	pid_t pid = fork();
 
@@ -55,11 +55,9 @@ void executarBackground(Token** grupoBackground, int indexListas)
 
 	// TODO: TESTAR SE SETSID() ALTERA ALGUM PPID
 
-	// TODO: SETAR OS HANDLERS DE SINAIS CORRETAMENTE
+	// TODO: SETAR OS HANDLERS DE SINAIS CORRETAMENTE MANTENDO O COMPORTAMENTO DA VSH PARA OS INTERMEDIARIOS EM RELACAO AOS SINAIS
 
-	// TODO: RECEBER O SINAL DOS FILHOS DO INTERMEDIARIO PELO WAIT E VERIFICAR SE WIFEXITSTATUS RETORNOU ALGUEM TERMINADO (SIGUSR1 E SIGUSR2)
-
-	if(pid == 0){ // Caso processo intermediário da sessão
+	if(pid == 0){  // Caso processo intermediário para criar a nova sessão
 		
 		int pid1, pid2, pid3, pid4, pid5;
 		int wstatus;
@@ -73,77 +71,100 @@ void executarBackground(Token** grupoBackground, int indexListas)
 		
 		setsid();
 
-		// TODO: backgroundPGID[i] = getpgid()
-
 		arrayArgumentos = listaGetTokenArray(grupoBackground[0]);
+		numComandos--;
 		pid1 = fork();
 		if(pid1 == 0){  // Primeiro comando
 			close(fd[0][LEITURA]);
 			dup2(fd[0][ESCRITA], 1);
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
-		numComandos--;
+		
 
 		arrayArgumentos = listaGetTokenArray(grupoBackground[1]);
+		numComandos--;
 		pid2 = fork();
 		if(pid2 == 0){  // Segundo comando
 			close(fd[0][ESCRITA]);
 			close(fd[1][LEITURA]);
+			if(numComandos != 0){
+				dup2(fd[1][ESCRITA], 1);
+			}
+			else {
+				close(fd[1][ESCRITA]);
+				close(fd[2][LEITURA]);
+				close(fd[2][ESCRITA]);
+				close(fd[3][LEITURA]);
+				close(fd[3][ESCRITA]);
+			}
 			dup2(fd[0][LEITURA], 0);
-			dup2(fd[1][ESCRITA], 1);
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
-		numComandos--;
 
 		if(numComandos > 0){
 			arrayArgumentos = listaGetTokenArray(grupoBackground[2]);
-			// numComandos--; ???
+			numComandos--;
 			pid3 = fork();
 			if(pid3 == 0){  // Terceiro comando, se houver
 				close(fd[1][ESCRITA]);
 				close(fd[2][LEITURA]);
 				dup2(fd[1][LEITURA], 0);
-				dup2(fd[2][ESCRITA], 1);
+				if(numComandos != 0){
+					dup2(fd[2][ESCRITA], 1);
+				}
+				else {
+					close(fd[2][ESCRITA]);
+					close(fd[3][LEITURA]);
+					close(fd[3][ESCRITA]);
+				}
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
-			numComandos--;
 		}
 
 		if(numComandos > 0){
 			arrayArgumentos = listaGetTokenArray(grupoBackground[3]);
+			numComandos--;
 			pid4 = fork();
 			if(pid4 == 0){  // Quarto comando, se houver
 				close(fd[2][ESCRITA]);
 				close(fd[3][LEITURA]);
 				dup2(fd[2][LEITURA], 0);
-				dup2(fd[3][ESCRITA], 1);
+				if(numComandos != 0){
+					dup2(fd[3][ESCRITA], 1);
+				}
+				else {
+					close(fd[3][ESCRITA]);
+				}
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
-			numComandos--;
 		}
 
 		if(numComandos > 0){
 			arrayArgumentos = listaGetTokenArray(grupoBackground[4]);
+			numComandos--;
 			pid5 = fork();
 			if(pid5 == 0){  // Quinto comando, se houver
 				close(fd[3][ESCRITA]);
 				dup2(fd[3][LEITURA], 0);
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
-			numComandos--;
 		}
 		
-		while(1){
-			if((waitpid(-1, &wstatus, 0) == -1) && (errno == ECHILD)){
+		while(1){  // Loop para prender o intermediario
+			if((waitpid(-1, &wstatus, 0) == -1) && (errno == ECHILD)){  // Liberando o intermediario
+																		// caso nao tenha mais processo
+																		// para terminar
 				break;
 			}
 			if(WIFSIGNALED(wstatus) > 0)
-				if(WTERMSIG(wstatus) == SIGUSR1 || WTERMSIG(wstatus) == SIGUSR2)
+				if(WTERMSIG(wstatus) == SIGUSR1 || WTERMSIG(wstatus) == SIGUSR2)  // Liberando o intermediario caso
+																				  // algum processo filho tenha recebido
+																				  // SIGUSR1 ou SIGUSR2
 					sigusr = 1;
 					break;
 		}
 
-		if(sigusr){
+		if(sigusr){  // Terminando a sessao caso houver ocorrencia do SIGUSR1 ou do SIGUSR2
 			kill(-getpgid(getpid()), SIGKILL);
 		}
 			
@@ -168,9 +189,7 @@ void armageddon(void)
 
 	// TODO: PRECISA MESMO DESSE VETOR?
 	
-	while(1)
-		if(((waitpid(-1, NULL, WNOHANG)) == -1) && (errno == ECHILD))
-			break;
+	waitpid(-1, NULL, WNOHANG);
 }
 
 /**
