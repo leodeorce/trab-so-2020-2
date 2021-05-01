@@ -55,9 +55,11 @@ void executarBackground(Token** grupoBackground, int indexListas)
 
 	// TODO: TESTAR SE SETSID() ALTERA ALGUM PPID
 
-	// TODO: SETAR OS HANDLERS DE SINAIS CORRETAMENTE MANTENDO O COMPORTAMENTO DA VSH PARA OS INTERMEDIARIOS EM RELACAO AOS SINAIS
-
 	if(pid == 0){  // Caso processo intermediário para criar a nova sessão
+		
+		// Processos intermediarios ignorando os SIGUSR's
+		signal(SIGUSR1, SIG_IGN);
+		signal(SIGUSR2, SIG_IGN);
 		
 		int pid1, pid2, pid3, pid4, pid5;
 		int wstatus;
@@ -83,9 +85,11 @@ void executarBackground(Token** grupoBackground, int indexListas)
 			close(fd[3][LEITURA]);
 			close(fd[3][ESCRITA]);
 			dup2(fd[0][ESCRITA], 1);
+			signal(SIGUSR1, SIG_DFL);
+			signal(SIGUSR2, SIG_DFL);
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
-		// free(arrayArgumentos);
+		free(arrayArgumentos);
 
 		arrayArgumentos = listaGetTokenArray(grupoBackground[1]);
 		numComandos--;
@@ -105,10 +109,11 @@ void executarBackground(Token** grupoBackground, int indexListas)
 				close(fd[3][LEITURA]);
 				close(fd[3][ESCRITA]);
 			}
-			
+			signal(SIGUSR1, SIG_DFL);
+			signal(SIGUSR2, SIG_DFL);
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
-		// free(arrayArgumentos);
+		free(arrayArgumentos);
 
 		if(numComandos > 0){
 			arrayArgumentos = listaGetTokenArray(grupoBackground[2]);
@@ -127,7 +132,8 @@ void executarBackground(Token** grupoBackground, int indexListas)
 					close(fd[3][LEITURA]);
 					close(fd[3][ESCRITA]);
 				}
-
+				signal(SIGUSR1, SIG_DFL);
+				signal(SIGUSR2, SIG_DFL);
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 			free(arrayArgumentos);
@@ -148,7 +154,8 @@ void executarBackground(Token** grupoBackground, int indexListas)
 				else {
 					close(fd[3][ESCRITA]);
 				}
-				
+				signal(SIGUSR1, SIG_DFL);
+				signal(SIGUSR2, SIG_DFL);
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 			free(arrayArgumentos);
@@ -161,6 +168,8 @@ void executarBackground(Token** grupoBackground, int indexListas)
 			if(pid5 == 0){  // Quinto comando, se houver
 				close(fd[3][ESCRITA]);
 				dup2(fd[3][LEITURA], 0);
+				signal(SIGUSR1, SIG_DFL);
+				signal(SIGUSR2, SIG_DFL);
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 			free(arrayArgumentos);
@@ -189,6 +198,8 @@ void executarBackground(Token** grupoBackground, int indexListas)
 	}
 	else if(pid > 0){  // Caso pai
 
+		// ADICIONA A LISTA DE SID's
+		
 	}
 	else
 		perror("Falha ao executar fork()");

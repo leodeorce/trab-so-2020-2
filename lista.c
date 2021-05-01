@@ -95,3 +95,26 @@ void listaImprime(Token* lista)
 		P = P->proximo;
 	}
 }
+
+Token* listaRemover(char* item, Token* lista)
+{
+	Token* P = lista, *temp = lista;
+
+	while(P != NULL) {
+		if(P == lista && strcmp(P->texto, item) == 0){
+			lista = P->proximo;
+			free(P->texto);
+			free(P);
+		}
+		else if(strcmp(P->texto, item) == 0){
+			temp->proximo = P->proximo;
+			free(P->texto);
+			free(P);
+			P = temp;
+		}
+		temp = P;
+		P = P->proximo;
+	}
+
+	return lista;
+}
