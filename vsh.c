@@ -67,13 +67,13 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 		int sigusr = 0;
 		int fd[4][2];
 
+		setsid();
+		
 		if(pipe(fd[0]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[1]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[2]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[3]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		
-		setsid();
-
 		// sprintf(sid, "%d", getpid());
 		// listaSID = listaInsere(sid, listaSID);
 
