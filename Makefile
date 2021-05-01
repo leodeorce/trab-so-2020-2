@@ -7,8 +7,8 @@
 
 all: comp
 
-comp: vsh_alt.c lista.c
-	gcc -Wall -std=gnu99 vsh_alt.c lista.c -o vsh
+comp: vsh.c lista.c
+	gcc -Wall -std=gnu99 vsh.c lista.c -o vsh
 
 run:
 	./vsh
