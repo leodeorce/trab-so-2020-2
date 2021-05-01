@@ -1,3 +1,10 @@
+#
+#  Integrantes:
+#      Leonardo Deorce Lima de Oliveira
+#      Maria Julia Damasceno
+#      Pedro Victor Alves de Souza Santos
+#
+
 all: comp
 
 comp: vsh.c lista.c
