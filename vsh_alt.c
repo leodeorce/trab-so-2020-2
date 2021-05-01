@@ -87,32 +87,32 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 		if(pipe(fd[2]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[3]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 
-        for(int i = 0; i <= indexListas; i++) {
+		for(int i = 0; i <= indexListas; i++) {
 
-            arrayArgumentos = listaGetTokenArray(grupoBackground[i]);
-            pid[i] = fork();
+			arrayArgumentos = listaGetTokenArray(grupoBackground[i]);
+			pid[i] = fork();
 
-            if(pid[i] == 0) {
+			if(pid[i] == 0) {
 
-                signal(SIGUSR1, SIG_DFL);
-			    signal(SIGUSR2, SIG_DFL);
+				signal(SIGUSR1, SIG_DFL);
+				signal(SIGUSR2, SIG_DFL);
 
-                switch(i) {
-                    case 1: dup2(fd[0][LEITURA], 0); break;
-                    case 2: dup2(fd[1][LEITURA], 0); break;
-                    case 3: dup2(fd[2][LEITURA], 0); break;
-                    case 4: dup2(fd[3][LEITURA], 0); break;
-                }
+				switch(i) {
+					case 1: dup2(fd[0][LEITURA], 0); break;
+					case 2: dup2(fd[1][LEITURA], 0); break;
+					case 3: dup2(fd[2][LEITURA], 0); break;
+					case 4: dup2(fd[3][LEITURA], 0); break;
+				}
 
-                if(i != indexListas)
-                    dup2(fd[i][ESCRITA], 1);
-                
-                closePipes();
-                execvp(arrayArgumentos[0], arrayArgumentos);
-            }
+				if(i != indexListas)
+					dup2(fd[i][ESCRITA], 1);
+				
+				closePipes();
+				execvp(arrayArgumentos[0], arrayArgumentos);
+			}
 
-            free(arrayArgumentos);
-        }
+			free(arrayArgumentos);
+		}
 		
 		closePipes();
 		
@@ -251,7 +251,7 @@ int main(void)
 		loop = 1;           // 'loop' em 1 indica que novos caracteres serão lidos
 		background = 0;     // 'background' em 0 indica que ainda não lemos um '|'
 		indexListas = 0;    /* 'indexListas' em 0 indica que ainda não terminamos
-                               de ler o primeiro comando */
+							   de ler o primeiro comando */
 
 		while(loop == 1) {  // Loop de leitura de caracteres
 
@@ -262,7 +262,7 @@ int main(void)
 				case '\n':
 
 					if(strlen(token) > 0) {  /* Se existirem espaços antes da
-                                                quebra de linha, 'token' estará vazio. */
+												quebra de linha, 'token' estará vazio. */
 						listaTokens = listaInsere(token, listaTokens);
 					}
 
@@ -279,7 +279,7 @@ int main(void)
 					if(background == 0 && tamanhoLista > 0) {
 
 						if(tamanhoLista == 1) {  /* Se existe apenas um token na lista,
-                                                    há chance que este é operação interna. */
+													há chance que este é operação interna. */
 							if(strcmp(listaGetByIndex(0, listaTokens), "armageddon") == 0) {
 								armageddon(listaSID);
 								loop = 0;
@@ -294,7 +294,7 @@ int main(void)
 						}
 
 						if(tamanhoLista <= 4) {  /* Se a quantidade de tokens é maior que 4,
-                                                    a quantidade de argumentos é maior que 3. */
+													a quantidade de argumentos é maior que 3. */
 							executarForeground(listaTokens);
 
 						} else {
@@ -308,7 +308,7 @@ int main(void)
 					else if(background == 1) {
 
 						if(tamanhoLista >= 5) {  /* Se a quantidade de tokens é maior que 4,
-                                                    a quantidade de argumentos é maior que 3. */
+													a quantidade de argumentos é maior que 3. */
 							printf("Erro: limite de argumentos para o comando '%s' excedido\n",
 								listaGetByIndex(0, listaTokens));
 							loop = 0;
@@ -326,7 +326,7 @@ int main(void)
 				case '|':
 
 					if(strlen(token) > 0) {  /* Se o token não está vazio, então o operador
-                                                especial foi encontrado no meio de uma palavra */
+												especial foi encontrado no meio de uma palavra */
 						printf("Erro: símbolo '|' inesperado\n");
 						resetarEntrada();
 						loop = 0;
@@ -359,7 +359,7 @@ int main(void)
 					indexToken = 0;  // Um token foi finalizado
 
 					if(strlen(token) > 0) {  /* Se o token finalizado não é vazio
-                                                então ele deve ser inserido na lista */
+												então ele deve ser inserido na lista */
 						listaTokens = listaInsere(token, listaTokens);
 					}
 
