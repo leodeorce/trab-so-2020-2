@@ -101,16 +101,14 @@ Token* listaRemover(char* item, Token* lista)
 	Token* P = lista, *temp = lista;
 
 	while(P != NULL) {
-		if(P == lista && strcmp(P->texto, item) == 0){
-			lista = P->proximo;
+		if(strcmp(P->texto, item) == 0) {
+			if(P == lista)
+				lista = P->proximo;
+			else
+				temp->proximo = P->proximo;
 			free(P->texto);
 			free(P);
-		}
-		else if(strcmp(P->texto, item) == 0){
-			temp->proximo = P->proximo;
-			free(P->texto);
-			free(P);
-			P = temp;
+			break;
 		}
 		temp = P;
 		P = P->proximo;

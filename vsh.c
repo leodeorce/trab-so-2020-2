@@ -12,6 +12,16 @@
 #define LEITURA 0
 #define ESCRITA 1
 
+#define closePipes()        \
+	close(fd[0][LEITURA]);  \
+	close(fd[0][ESCRITA]);  \
+	close(fd[1][LEITURA]);  \
+	close(fd[1][ESCRITA]);  \
+	close(fd[2][LEITURA]);  \
+	close(fd[2][ESCRITA]);  \
+	close(fd[3][LEITURA]);  \
+	close(fd[3][ESCRITA])
+
 /**
  *  Executa um comando em foreground
  */
@@ -29,9 +39,9 @@ void executarForeground(Token* listaTokens)
 	}
 	else if(pid > 0) {  // Caso pai
 		free(arrayArgumentos);
-		wait(&wstatus);
+		waitpid(pid, &wstatus, 0);
 		if (WIFEXITED(wstatus) > 0)
-			if(WEXITSTATUS(wstatus) != 0)
+			if(WEXITSTATUS(wstatus) != 0)  // Retorno 0 implícito
 				printf("Filho retornou com código %d\n", WEXITSTATUS(wstatus));
 		if (WIFSIGNALED(wstatus) > 0)
 			printf("Filho terminou ao receber o sinal %d\n", WTERMSIG(wstatus));
@@ -59,6 +69,9 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 	if(pid == 0){  // Caso processo intermediário para criar a nova sessão
 		
 		// Processos intermediarios ignorando os SIGUSR's
+
+		// TODO: Será que não é pra SIGUSR matar o intermediário? Daí criaria zumbis
+
 		signal(SIGUSR1, SIG_IGN);
 		signal(SIGUSR2, SIG_IGN);
 		
@@ -74,108 +87,127 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 		if(pipe(fd[2]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[3]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		
-		// sprintf(sid, "%d", getpid());
-		// listaSID = listaInsere(sid, listaSID);
+		// Primeiro comando
 
 		arrayArgumentos = listaGetTokenArray(grupoBackground[0]);
 		numComandos--;
 		pid1 = fork();
-		if(pid1 == 0){  // Primeiro comando
+
+		if(pid1 == 0){
+
 			signal(SIGUSR1, SIG_DFL);
 			signal(SIGUSR2, SIG_DFL);
-			close(fd[0][LEITURA]);
-			close(fd[1][LEITURA]);
-			close(fd[1][ESCRITA]);
-			close(fd[2][LEITURA]);
-			close(fd[2][ESCRITA]);
-			close(fd[3][LEITURA]);
-			close(fd[3][ESCRITA]);
+
 			dup2(fd[0][ESCRITA], 1);
+
+			closePipes();
+
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
+		
 		free(arrayArgumentos);
+
+		// Segundo comando
 
 		arrayArgumentos = listaGetTokenArray(grupoBackground[1]);
 		numComandos--;
 		pid2 = fork();
-		if(pid2 == 0){  // Segundo comando
+
+		if(pid2 == 0){
+
 			signal(SIGUSR1, SIG_DFL);
 			signal(SIGUSR2, SIG_DFL);
-			close(fd[0][ESCRITA]);
-			close(fd[1][LEITURA]);
+
 			dup2(fd[0][LEITURA], 0);
-			if(numComandos != 0){
+
+			if(numComandos != 0)
 				dup2(fd[1][ESCRITA], 1);
-			}
-			else {
-				close(fd[1][ESCRITA]);
-				close(fd[2][LEITURA]);
-				close(fd[2][ESCRITA]);
-				close(fd[3][LEITURA]);
-				close(fd[3][ESCRITA]);
-			}
+
+			closePipes();
+
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
+
 		free(arrayArgumentos);
 
+		// Terceiro comando, se houver
+
 		if(numComandos > 0){
+
 			arrayArgumentos = listaGetTokenArray(grupoBackground[2]);
 			numComandos--;
 			pid3 = fork();
-			if(pid3 == 0){  // Terceiro comando, se houver
+
+			if(pid3 == 0){
+
 				signal(SIGUSR1, SIG_DFL);
 				signal(SIGUSR2, SIG_DFL);
-				close(fd[1][ESCRITA]);
-				close(fd[2][LEITURA]);
+
 				dup2(fd[1][LEITURA], 0);
+
 				if(numComandos != 0){
 					dup2(fd[2][ESCRITA], 1);
 				}
-				else {
-					close(fd[2][ESCRITA]);
-					close(fd[3][LEITURA]);
-					close(fd[3][ESCRITA]);
-				}
+
+				closePipes();
+
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
+
 			free(arrayArgumentos);
 		}
 
+		// Quarto comando, se houver
+
 		if(numComandos > 0){
+
 			arrayArgumentos = listaGetTokenArray(grupoBackground[3]);
 			numComandos--;
 			pid4 = fork();
-			if(pid4 == 0){  // Quarto comando, se houver
+
+			if(pid4 == 0){
+
 				signal(SIGUSR1, SIG_DFL);
 				signal(SIGUSR2, SIG_DFL);
-				close(fd[2][ESCRITA]);
-				close(fd[3][LEITURA]);
+				
 				dup2(fd[2][LEITURA], 0);
 
 				if(numComandos != 0){
 					dup2(fd[3][ESCRITA], 1);
 				}
-				else {
-					close(fd[3][ESCRITA]);
-				}
+
+				closePipes();
+
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
+
 			free(arrayArgumentos);
 		}
 
+		// Quinto comando, se houver
+
 		if(numComandos > 0){
+
 			arrayArgumentos = listaGetTokenArray(grupoBackground[4]);
 			numComandos--;
 			pid5 = fork();
-			if(pid5 == 0){  // Quinto comando, se houver
+
+			if(pid5 == 0){
+
 				signal(SIGUSR1, SIG_DFL);
 				signal(SIGUSR2, SIG_DFL);
-				close(fd[3][ESCRITA]);
+
 				dup2(fd[3][LEITURA], 0);
+
+				closePipes();
+
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
+
 			free(arrayArgumentos);
 		}
+
+		closePipes();
 		
 		while(1){  // Loop para prender o intermediário
 			// Liberando o intermediário caso nao tenha mais processo para terminar
@@ -199,6 +231,7 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 		exit(0);
 	}
 	else if(pid > 0){  // Caso pai
+		// Transforma PID do processo intermediário (= SID) em string
 		sprintf(sid, "%d", pid);
 		listaSID = listaInsere(sid, listaSID);
 	}
@@ -213,19 +246,26 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
  */
 void armageddon(Token* listaSID)
 {
-	waitpid(-1, NULL, WNOHANG);
 	int numProcessos = listaTamanho(listaSID);
 	for(int i = 0; i < numProcessos; i++) {
-		kill(-atoi(listaGetByIndex(i, listaSID)), SIGKILL);
+		// Transforma o SID armazenado em texto para pid_t
+		// SID = PGID nos processos criados em 'executarBackground'
+		// Envia SIGKILL para todos os processos da sessão
+		kill( -((pid_t) atoi(listaGetByIndex(i, listaSID))), SIGKILL );
 	}
+	listaSID = listaLibera(listaSID);
 }
 
 /**
  *  Libera descendentes zumbis
  */
-void liberamoita(void)
+void liberamoita(Token* listaSID)
 {
-	waitpid(-1, NULL, WNOHANG);
+	int numProcessos = listaTamanho(listaSID);
+	// 'wait' em cada processo intermediário
+	for(int i = 0; i < numProcessos; i++) {
+		waitpid(-1, NULL, WNOHANG);
+	}
 }
 
 /**
@@ -264,6 +304,7 @@ int main(void)
 	 *  detectado ou o final da linha é alcançado. */
 	Token* listaTokens = listaInicializa();
 
+	// Armazena os SIDs de processos criados em background
 	Token* listaSID = listaInicializa();
 
 	// Armazena listas de comandos a serem executados em background
@@ -339,7 +380,7 @@ int main(void)
 								break;
 							}
 							else if(strcmp(listaGetByIndex(0, listaTokens), "liberamoita") == 0) {
-								liberamoita();
+								liberamoita(listaSID);
 								loop = 0;
 								break;
 							}
