@@ -45,9 +45,10 @@ void executarForeground(Token* listaTokens)
  *  @param grupoBackground Array de listas de comandos
  *  @param indexListas Posição da array com a última lista
  */
-void executarBackground(Token** grupoBackground, int indexListas)
+Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexListas)
 {
 	int numComandos = indexListas + 1;
+	char sid[10];
 	char** arrayArgumentos;
 	pid_t pid = fork();
 
@@ -73,10 +74,15 @@ void executarBackground(Token** grupoBackground, int indexListas)
 		
 		setsid();
 
+		// sprintf(sid, "%d", getpid());
+		// listaSID = listaInsere(sid, listaSID);
+
 		arrayArgumentos = listaGetTokenArray(grupoBackground[0]);
 		numComandos--;
 		pid1 = fork();
 		if(pid1 == 0){  // Primeiro comando
+			signal(SIGUSR1, SIG_DFL);
+			signal(SIGUSR2, SIG_DFL);
 			close(fd[0][LEITURA]);
 			close(fd[1][LEITURA]);
 			close(fd[1][ESCRITA]);
@@ -85,8 +91,6 @@ void executarBackground(Token** grupoBackground, int indexListas)
 			close(fd[3][LEITURA]);
 			close(fd[3][ESCRITA]);
 			dup2(fd[0][ESCRITA], 1);
-			signal(SIGUSR1, SIG_DFL);
-			signal(SIGUSR2, SIG_DFL);
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
 		free(arrayArgumentos);
@@ -95,10 +99,11 @@ void executarBackground(Token** grupoBackground, int indexListas)
 		numComandos--;
 		pid2 = fork();
 		if(pid2 == 0){  // Segundo comando
+			signal(SIGUSR1, SIG_DFL);
+			signal(SIGUSR2, SIG_DFL);
 			close(fd[0][ESCRITA]);
 			close(fd[1][LEITURA]);
 			dup2(fd[0][LEITURA], 0);
-
 			if(numComandos != 0){
 				dup2(fd[1][ESCRITA], 1);
 			}
@@ -109,8 +114,6 @@ void executarBackground(Token** grupoBackground, int indexListas)
 				close(fd[3][LEITURA]);
 				close(fd[3][ESCRITA]);
 			}
-			signal(SIGUSR1, SIG_DFL);
-			signal(SIGUSR2, SIG_DFL);
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
 		free(arrayArgumentos);
@@ -120,10 +123,11 @@ void executarBackground(Token** grupoBackground, int indexListas)
 			numComandos--;
 			pid3 = fork();
 			if(pid3 == 0){  // Terceiro comando, se houver
+				signal(SIGUSR1, SIG_DFL);
+				signal(SIGUSR2, SIG_DFL);
 				close(fd[1][ESCRITA]);
 				close(fd[2][LEITURA]);
 				dup2(fd[1][LEITURA], 0);
-
 				if(numComandos != 0){
 					dup2(fd[2][ESCRITA], 1);
 				}
@@ -132,8 +136,6 @@ void executarBackground(Token** grupoBackground, int indexListas)
 					close(fd[3][LEITURA]);
 					close(fd[3][ESCRITA]);
 				}
-				signal(SIGUSR1, SIG_DFL);
-				signal(SIGUSR2, SIG_DFL);
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 			free(arrayArgumentos);
@@ -144,6 +146,8 @@ void executarBackground(Token** grupoBackground, int indexListas)
 			numComandos--;
 			pid4 = fork();
 			if(pid4 == 0){  // Quarto comando, se houver
+				signal(SIGUSR1, SIG_DFL);
+				signal(SIGUSR2, SIG_DFL);
 				close(fd[2][ESCRITA]);
 				close(fd[3][LEITURA]);
 				dup2(fd[2][LEITURA], 0);
@@ -154,8 +158,6 @@ void executarBackground(Token** grupoBackground, int indexListas)
 				else {
 					close(fd[3][ESCRITA]);
 				}
-				signal(SIGUSR1, SIG_DFL);
-				signal(SIGUSR2, SIG_DFL);
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 			free(arrayArgumentos);
@@ -166,10 +168,10 @@ void executarBackground(Token** grupoBackground, int indexListas)
 			numComandos--;
 			pid5 = fork();
 			if(pid5 == 0){  // Quinto comando, se houver
-				close(fd[3][ESCRITA]);
-				dup2(fd[3][LEITURA], 0);
 				signal(SIGUSR1, SIG_DFL);
 				signal(SIGUSR2, SIG_DFL);
+				close(fd[3][ESCRITA]);
+				dup2(fd[3][LEITURA], 0);
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 			free(arrayArgumentos);
@@ -197,28 +199,25 @@ void executarBackground(Token** grupoBackground, int indexListas)
 		exit(0);
 	}
 	else if(pid > 0){  // Caso pai
-
-		// ADICIONA A LISTA DE SID's
-		
+		sprintf(sid, "%d", pid);
+		listaSID = listaInsere(sid, listaSID);
 	}
 	else
 		perror("Falha ao executar fork()");
+
+	return listaSID;
 }
 
 /**
  *  Termina os descendentes
  */
-void armageddon(void)
+void armageddon(Token* listaSID)
 {
-	// for(int i = 0; i < MAX_BACKGROUND; i++) {
-	// 	kill(-backgroundPGID[i], SIGKILL);
-	// }
-
-	// TODO: KILL NUM PGID NAO EXISTENTE DA ERRO?
-
-	// TODO: PRECISA MESMO DESSE VETOR?
-	
 	waitpid(-1, NULL, WNOHANG);
+	int numProcessos = listaTamanho(listaSID);
+	for(int i = 0; i < numProcessos; i++) {
+		kill(-atoi(listaGetByIndex(i, listaSID)), SIGKILL);
+	}
 }
 
 /**
@@ -226,12 +225,6 @@ void armageddon(void)
  */
 void liberamoita(void)
 {
-	// for(int i = 0; i < MAX_BACKGROUND; i++) {
-	// 	kill(-backgroundPGID[i], SIGCHLD);
-	// }
-
-	// TODO: PRECISA MESMO DESSE VETOR?
-
 	waitpid(-1, NULL, WNOHANG);
 }
 
@@ -270,6 +263,8 @@ int main(void)
 	 *  seus argumentos. A lista é esvaziada sempre que um operador especial '|' é
 	 *  detectado ou o final da linha é alcançado. */
 	Token* listaTokens = listaInicializa();
+
+	Token* listaSID = listaInicializa();
 
 	// Armazena listas de comandos a serem executados em background
 	Token* grupoBackground[5] = { NULL };
@@ -338,7 +333,7 @@ int main(void)
 						if(tamanhoLista == 1) {  /* Se existe apenas um token na lista,
                                                     há chance que este é operação interna. */
 							if(strcmp(listaGetByIndex(0, listaTokens), "armageddon") == 0) {
-								armageddon();
+								armageddon(listaSID);
 								loop = 0;
 								finalizar = 1;
 								break;
@@ -374,7 +369,7 @@ int main(void)
 
 						// Adiciona a última lista no grupo de comandos em background
 						grupoBackground[indexListas] = listaTokens;
-						executarBackground(grupoBackground, indexListas);
+						listaSID = executarBackground(grupoBackground, listaSID, indexListas);
 					}
 
 					loop = 0;

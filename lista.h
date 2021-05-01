@@ -63,4 +63,6 @@ int listaIsEmpty(Token* lista);
 
 void listaImprime(Token* lista);
 
+Token* listaRemover(char* item, Token* lista);
+
 #endif /* LISTA_H_ */
