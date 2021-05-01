@@ -35,6 +35,7 @@ void executarForeground(Token* listaTokens)
 	if(pid == 0) {  // Caso filho
 		signal(SIGUSR1, SIG_IGN);
 		signal(SIGUSR2, SIG_IGN);
+
 		execvp(arrayArgumentos[0], arrayArgumentos);
 	}
 	else if(pid > 0) {  // Caso pai
@@ -57,7 +58,6 @@ void executarForeground(Token* listaTokens)
  */
 Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexListas)
 {
-	int numComandos = indexListas + 1;
 	char sid[10];
 	char** arrayArgumentos;
 	pid_t pid = fork();
@@ -75,7 +75,7 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 		signal(SIGUSR1, SIG_IGN);
 		signal(SIGUSR2, SIG_IGN);
 		
-		pid_t pid1, pid2, pid3, pid4, pid5;
+		pid_t pid[5];
 		int   wstatus;
 		int   sigusr = 0;
 		int   fd[4][2];
@@ -86,127 +86,34 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 		if(pipe(fd[1]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[2]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[3]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
+
+        for(int i = 0; i <= indexListas; i++) {
+
+            arrayArgumentos = listaGetTokenArray(grupoBackground[i]);
+            pid[i] = fork();
+
+            if(pid[i] == 0) {
+
+                signal(SIGUSR1, SIG_DFL);
+			    signal(SIGUSR2, SIG_DFL);
+
+                switch(i) {
+                    case 1: dup2(fd[0][LEITURA], 0); break;
+                    case 2: dup2(fd[1][LEITURA], 0); break;
+                    case 3: dup2(fd[2][LEITURA], 0); break;
+                    case 4: dup2(fd[3][LEITURA], 0); break;
+                }
+
+                if(i != indexListas)
+                    dup2(fd[i][ESCRITA], 1);
+                
+                closePipes();
+                execvp(arrayArgumentos[0], arrayArgumentos);
+            }
+
+            free(arrayArgumentos);
+        }
 		
-		// Primeiro comando
-
-		arrayArgumentos = listaGetTokenArray(grupoBackground[0]);
-		numComandos--;
-		pid1 = fork();
-
-		if(pid1 == 0){
-
-			signal(SIGUSR1, SIG_DFL);
-			signal(SIGUSR2, SIG_DFL);
-
-			dup2(fd[0][ESCRITA], 1);
-
-			closePipes();
-
-			execvp(arrayArgumentos[0], arrayArgumentos);
-		}
-		
-		free(arrayArgumentos);
-
-		// Segundo comando
-
-		arrayArgumentos = listaGetTokenArray(grupoBackground[1]);
-		numComandos--;
-		pid2 = fork();
-
-		if(pid2 == 0){
-
-			signal(SIGUSR1, SIG_DFL);
-			signal(SIGUSR2, SIG_DFL);
-
-			dup2(fd[0][LEITURA], 0);
-
-			if(numComandos != 0)
-				dup2(fd[1][ESCRITA], 1);
-
-			closePipes();
-
-			execvp(arrayArgumentos[0], arrayArgumentos);
-		}
-
-		free(arrayArgumentos);
-
-		// Terceiro comando, se houver
-
-		if(numComandos > 0){
-
-			arrayArgumentos = listaGetTokenArray(grupoBackground[2]);
-			numComandos--;
-			pid3 = fork();
-
-			if(pid3 == 0){
-
-				signal(SIGUSR1, SIG_DFL);
-				signal(SIGUSR2, SIG_DFL);
-
-				dup2(fd[1][LEITURA], 0);
-
-				if(numComandos != 0){
-					dup2(fd[2][ESCRITA], 1);
-				}
-
-				closePipes();
-
-				execvp(arrayArgumentos[0], arrayArgumentos);
-			}
-
-			free(arrayArgumentos);
-		}
-
-		// Quarto comando, se houver
-
-		if(numComandos > 0){
-
-			arrayArgumentos = listaGetTokenArray(grupoBackground[3]);
-			numComandos--;
-			pid4 = fork();
-
-			if(pid4 == 0){
-
-				signal(SIGUSR1, SIG_DFL);
-				signal(SIGUSR2, SIG_DFL);
-				
-				dup2(fd[2][LEITURA], 0);
-
-				if(numComandos != 0){
-					dup2(fd[3][ESCRITA], 1);
-				}
-
-				closePipes();
-
-				execvp(arrayArgumentos[0], arrayArgumentos);
-			}
-
-			free(arrayArgumentos);
-		}
-
-		// Quinto comando, se houver
-
-		if(numComandos > 0){
-
-			arrayArgumentos = listaGetTokenArray(grupoBackground[4]);
-			numComandos--;
-			pid5 = fork();
-
-			if(pid5 == 0){
-
-				signal(SIGUSR1, SIG_DFL);
-				signal(SIGUSR2, SIG_DFL);
-
-				dup2(fd[3][LEITURA], 0);
-
-				closePipes();
-
-				execvp(arrayArgumentos[0], arrayArgumentos);
-			}
-
-			free(arrayArgumentos);
-		}
-
 		closePipes();
 		
 		while(1){  // Loop para prender o intermediário
