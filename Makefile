@@ -1,7 +1,14 @@
+#
+#  Integrantes:
+#      Leonardo Deorce Lima de Oliveira
+#      Maria Julia Damasceno
+#      Pedro Victor Alves de Souza Santos
+#
+
 all: comp
 
-comp: vsh.c lista.c
-	gcc -Wall -std=gnu99 vsh.c lista.c -o vsh
+comp: vsh_alt.c lista.c
+	gcc -Wall -std=gnu99 vsh_alt.c lista.c -o vsh
 
 run:
 	./vsh
