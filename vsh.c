@@ -7,7 +7,7 @@
 #include <sys/wait.h>
 #include "lista.h"
 
-#define MAX_COMMAND_LENGTH 2097152
+#define MAX_COMMAND_LENGTH 1000
 
 #define LEITURA 0
 #define ESCRITA 1
@@ -76,10 +76,16 @@ void executarBackground(Token** grupoBackground, int indexListas)
 		pid1 = fork();
 		if(pid1 == 0){  // Primeiro comando
 			close(fd[0][LEITURA]);
+			close(fd[1][LEITURA]);
+			close(fd[1][ESCRITA]);
+			close(fd[2][LEITURA]);
+			close(fd[2][ESCRITA]);
+			close(fd[3][LEITURA]);
+			close(fd[3][ESCRITA]);
 			dup2(fd[0][ESCRITA], 1);
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
-		free(arrayArgumentos);
+		// free(arrayArgumentos);
 
 		arrayArgumentos = listaGetTokenArray(grupoBackground[1]);
 		numComandos--;
@@ -102,7 +108,7 @@ void executarBackground(Token** grupoBackground, int indexListas)
 			
 			execvp(arrayArgumentos[0], arrayArgumentos);
 		}
-		free(arrayArgumentos);
+		// free(arrayArgumentos);
 
 		if(numComandos > 0){
 			arrayArgumentos = listaGetTokenArray(grupoBackground[2]);
@@ -178,7 +184,8 @@ void executarBackground(Token** grupoBackground, int indexListas)
 		if(sigusr){  // Terminando a sessão caso houver ocorrência do SIGUSR1 ou do SIGUSR2
 			kill(-getpgid(getpid()), SIGKILL);
 		}
-			
+		
+		exit(0);
 	}
 	else if(pid > 0){  // Caso pai
 
@@ -232,7 +239,7 @@ void catchUSR(int num)
  *  Leitura do restante de uma entrada em stdin caso erro seja encontrado
  */
 void resetarEntrada(void) {
-	char c;
+	char c = '\0';
 	while(c != '\n') scanf("%c", &c);
 }
 
@@ -299,21 +306,24 @@ int main(void)
 			switch(charLido) {
 
 				case '\n':
+
 					if(strlen(token) > 0) {  /* Se existirem espaços antes da
                                                 quebra de linha, 'token' estará vazio. */
-						// printf(">%s<\n", token);  // Debug
 						listaTokens = listaInsere(token, listaTokens);
-						// listaImprime(listaTokens);  // Debug
 					}
+
 					if(listaIsEmpty(listaTokens) == 1 && background == 1) {
 						printf("Erro: não há comando após último operador '|'\n");
 						loop = 0;
 						break;
 					}
+
 					int tamanhoLista = listaTamanho(listaTokens);
+					
 					// Verifica se o comando a executar é foreground ou background
 					// Verifica se existe comando a executar
 					if(background == 0 && tamanhoLista > 0) {
+
 						if(tamanhoLista == 1) {  /* Se existe apenas um token na lista,
                                                     há chance que este é operação interna. */
 							if(strcmp(listaGetByIndex(0, listaTokens), "armageddon") == 0) {
@@ -328,9 +338,11 @@ int main(void)
 								break;
 							}
 						}
+
 						if(tamanhoLista <= 4) {  /* Se a quantidade de tokens é maior que 4,
                                                     a quantidade de argumentos é maior que 3. */
 							executarForeground(listaTokens);
+
 						} else {
 							printf("Erro: limite de argumentos para o comando '%s' excedido\n",
 								listaGetByIndex(0, listaTokens));
@@ -338,21 +350,27 @@ int main(void)
 							break;
 						}
 					}
+
 					else if(background == 1) {
+
+						if(tamanhoLista >= 5) {  /* Se a quantidade de tokens é maior que 4,
+                                                    a quantidade de argumentos é maior que 3. */
+							printf("Erro: limite de argumentos para o comando '%s' excedido\n",
+								listaGetByIndex(0, listaTokens));
+							loop = 0;
+							break;
+						}
+
 						// Adiciona a última lista no grupo de comandos em background
 						grupoBackground[indexListas] = listaTokens;
-						// printf("Executando comandos em background: ");  // Placeholder
-						// for(int x=0; x<=indexListas; x++){  // Debug
-						// 	listaImprime(grupoBackground[x]);
-						// 	printf("\n");
-						// }
-						// printf("\n");
 						executarBackground(grupoBackground, indexListas);
 					}
+
 					loop = 0;
 					break;
 
 				case '|':
+
 					if(strlen(token) > 0) {  /* Se o token não está vazio, então o operador
                                                 especial foi encontrado no meio de uma palavra */
 						printf("Erro: símbolo '|' inesperado\n");
@@ -360,12 +378,14 @@ int main(void)
 						loop = 0;
 						break;
 					}
+
 					if(indexListas >= 4) {
 						printf("Erro: favor inserir no máximo 5 comandos\n");
 						resetarEntrada();
 						loop = 0;
 						break;
 					}
+
 					if(listaTamanho(listaTokens) >= 5) {
 						printf("Erro: limite de argumentos para o comando '%s' excedido\n",
 								listaGetByIndex(0, listaTokens));
@@ -373,7 +393,7 @@ int main(void)
 						loop = 0;
 						break;
 					}
-					// listaImprime(listaTokens);  // Debug
+
 					background = 1;  // As execuções devem ser em background
 					grupoBackground[indexListas] = listaTokens;
 					indexListas++;
@@ -381,13 +401,14 @@ int main(void)
 					break;
 
 				case ' ':
+
 					indexToken = 0;  // Um token foi finalizado
+
 					if(strlen(token) > 0) {  /* Se o token finalizado não é vazio
                                                 então ele deve ser inserido na lista */
-						// printf(">%s<\n", token);  // Debug
 						listaTokens = listaInsere(token, listaTokens);
-						// listaImprime(listaTokens);  // Debug
 					}
+
 					token[indexToken] = '\0';  // Reinicia o token
 					break;
 
@@ -399,12 +420,19 @@ int main(void)
 		}
 
 		if(background == 1) {
-			for(int i = 0; i <= indexListas; i++) {
+			int i = 0;
+			// Libera todas as listas auxiliares para processos background
+			while(i < indexListas && grupoBackground[i] != NULL) {
 				grupoBackground[i] = listaLibera(grupoBackground[i]);
+				i++;
 			}
 		}
+		
+		if(listaIsEmpty(listaTokens) == 0)
+			listaTokens = listaLibera(listaTokens);  // Caso saída do loop por erro
+		else if(background == 1)
+			grupoBackground[indexListas] = listaLibera(grupoBackground[indexListas]);
 
-		listaTokens = listaLibera(listaTokens);
 		listaTokens = listaInicializa();  // Reinicia a lista auxiliar
 
 		token[0] = '\0';  // Caso um sinal seja recebido e o token não é reiniciado
