@@ -86,16 +86,6 @@ int listaIsEmpty(Token* lista) {
 	return lista == NULL ? 1 : 0;
 }
 
-void listaImprime(Token* lista)
-{
-	Token* P = lista;
-	while(P != NULL) {
-		// printf ("texto: >%s<\n", P->texto);
-		printf (" >%s< ", P->texto);
-		P = P->proximo;
-	}
-}
-
 Token* listaRemover(char* item, Token* lista)
 {
 	Token* P = lista, *temp = lista;

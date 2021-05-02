@@ -182,7 +182,6 @@ Token* armageddon(Token* listaSID)
 		kill( -((pid_t) atoi(listaGetByIndex(i, listaSID))), SIGKILL );
 	}
 	listaSID = listaLibera(listaSID);
-	close(2);
 	kill(0, SIGINT);  // Caso algum processo foreground foi pausado e continuado
 	return listaSID;
 }
@@ -267,7 +266,7 @@ int main(void)
 	char   charLido = '\n';   // Armazena um caractere lido de stdin
 	int    finalizar = 0;	  // Finaliza a shell
 	int    indexToken = 0;    // Indica a posição em 'token' na qual se deve escrever
-	int    loop = 1;          // Indica se é hora de parar leitura e mostrar o prompt
+	int    loop = 1;          // Indica se é hora de parar leitura
 	int    background = 0;    // Indica se um operador especial de pipe foi lido
 	int    indexListas = 0;   // Índice no qual inserir uma lista em 'grupoBackground'
 
