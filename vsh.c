@@ -29,6 +29,7 @@ void executarForeground(Token* listaTokens)
 {
 	signal(SIGTSTP, SIG_IGN);
 	signal(SIGINT, SIG_IGN);
+	signal(SIGQUIT, SIG_IGN);
 	// Cria array com os elementos a serem passados para execvp()
 	char** arrayArgumentos = listaGetTokenArray(listaTokens);
 	int wstatus;
@@ -37,6 +38,7 @@ void executarForeground(Token* listaTokens)
 	if(pid == 0) {  // Caso filho
 		signal(SIGTSTP, SIG_DFL);
 		signal(SIGINT, SIG_DFL);
+		signal(SIGQUIT, SIG_DFL);
 		signal(SIGUSR1, SIG_IGN);
 		signal(SIGUSR2, SIG_IGN);
 		execvp(arrayArgumentos[0], arrayArgumentos);
@@ -54,6 +56,7 @@ void executarForeground(Token* listaTokens)
 		perror("Falha ao executar fork()");
 
 	signal(SIGTSTP, SIG_DFL);
+	signal(SIGQUIT, SIG_DFL);
 	signal(SIGINT, SIG_DFL);
 }
 
