@@ -57,7 +57,6 @@ void executarForeground(Token* listaTokens)
  */
 Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexListas)
 {
-	int numComandos = indexListas + 1;
 	char sid[10];
 	char** arrayArgumentos;
 	pid_t pid = fork();
@@ -68,8 +67,8 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 
 		// TODO: Será que não é pra SIGUSR matar o intermediário? Daí criaria zumbis
 
-		signal(SIGUSR1, SIG_IGN);
-		signal(SIGUSR2, SIG_IGN);
+		signal(SIGUSR1, SIG_DFL);
+		signal(SIGUSR2, SIG_DFL);
 		
 		pid_t pid[5];
 		int   wstatus;
@@ -127,12 +126,18 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 			}
 		}
 
+		int i = 0;
+        // Libera todas as listas auxiliares para processos background
+        while(i <= indexListas && grupoBackground[i] != NULL) {
+            grupoBackground[i] = listaLibera(grupoBackground[i]);
+            i++;
+        }
+
+		listaSID = listaLibera(listaSID);
+
 		if(sigusr){  // Terminando a sessão caso houver ocorrência do SIGUSR1 ou do SIGUSR2
 			kill(-getpgid(getpid()), SIGKILL);
 		}
-
-		sprintf(sid, "%d", getpid());
-		listaSID = listaRemover(sid, listaSID);
 		
 		exit(0);
 	}
@@ -150,7 +155,7 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 /**
  *  Termina os descendentes
  */
-void armageddon(Token* listaSID)
+Token* armageddon(Token* listaSID)
 {
 	int numProcessos = listaTamanho(listaSID);
 	for(int i = 0; i < numProcessos; i++) {
@@ -160,22 +165,58 @@ void armageddon(Token* listaSID)
 		kill( -((pid_t) atoi(listaGetByIndex(i, listaSID))), SIGKILL );
 	}
 	listaSID = listaLibera(listaSID);
+
+	return listaSID;
 }
 
 /**
  *  Libera descendentes zumbis
  */
-void liberamoita(Token* listaSID)
+Token* liberamoita(Token* listaSID)
 {
 	int numProcessos = listaTamanho(listaSID);
+	int wstatus;
+	
 	// 'wait' em cada processo intermediário
-	for(int i = 0; i < numProcessos; i++) {
-		waitpid(-1, NULL, WNOHANG);
+	int x = 0;
+
+	while(x < numProcessos) {
+		char temp[10];
+		pid_t pid = waitpid(-1, &wstatus, WNOHANG);
+		if(pid > 0 && WIFEXITED(wstatus) > 0){
+			sprintf(temp, "%d", pid);
+			listaSID = listaRemover(temp, listaSID);
+			x--;
+			numProcessos--;
+		}
+		x++;
 	}
+
+	x = 0;
+	numProcessos = listaTamanho(listaSID);
+
+	while(x < numProcessos) {
+		char temp[10];
+		pid_t pid = (pid_t) atoi(listaGetByIndex(x, listaSID)), pid2;
+		int teste;
+		if((pid2 = waitpid(pid, NULL, WNOHANG)) == -1 && (teste = errno) == ECHILD){
+			sprintf(temp, "%d", pid);
+			listaSID = listaRemover(temp, listaSID);
+			x--;
+			numProcessos--;
+		}
+		printf("\nwaitpid = %d && errno = %d\n", pid2, teste);
+		x++;
+	}
+
+	numProcessos = listaTamanho(listaSID);
+
 	// 'wait' para os processos netos
 	for(int i = 0; i < numProcessos; i++) {
 		kill( -((pid_t) atoi(listaGetByIndex(i, listaSID))), SIGCHLD );
 	}
+
+	return listaSID;
 }
 
 /**
@@ -249,6 +290,9 @@ int main(void)
 	
 	while(1) {  // Loop do prompt
 
+								  
+		listaImprime(listaSID);
+		printf("\n");			// Debug
 		printf("vsh> ");
 		indexToken = 0;     // 'indexToken' em 0 indica que token é reescrito
 		loop = 1;           // 'loop' em 1 indica que novos caracteres serão lidos
@@ -284,13 +328,13 @@ int main(void)
 						if(tamanhoLista == 1) {  /* Se existe apenas um token na lista,
                                                     há chance que este é operação interna. */
 							if(strcmp(listaGetByIndex(0, listaTokens), "armageddon") == 0) {
-								armageddon(listaSID);
+								listaSID = armageddon(listaSID);
 								loop = 0;
 								finalizar = 1;
 								break;
 							}
 							else if(strcmp(listaGetByIndex(0, listaTokens), "liberamoita") == 0) {
-								liberamoita(listaSID);
+								listaSID = liberamoita(listaSID);
 								loop = 0;
 								break;
 							}
