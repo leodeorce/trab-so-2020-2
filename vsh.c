@@ -63,9 +63,7 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 
 	if(pid == 0){  // Caso processo intermediário para criar a nova sessão
 		
-		// Processos intermediarios ignorando os SIGUSR's
-
-		// TODO: Será que não é pra SIGUSR matar o intermediário? Daí criaria zumbis
+		// Processos intermediarios terminando com os SIGUSR's
 
 		signal(SIGUSR1, SIG_DFL);
 		signal(SIGUSR2, SIG_DFL);
@@ -88,9 +86,6 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 			pid[i] = fork();
 
 			if(pid[i] == 0) {
-
-				signal(SIGUSR1, SIG_DFL);
-				signal(SIGUSR2, SIG_DFL);
 
 				switch(i) {
 					case 1: dup2(fd[0][LEITURA], 0); break;
@@ -176,43 +171,40 @@ Token* liberamoita(Token* listaSID)
 {
 	int numProcessos = listaTamanho(listaSID);
 	int wstatus;
-	
+		
+	int i = 0;
 	// 'wait' em cada processo intermediário
-	int x = 0;
-
-	while(x < numProcessos) {
+	while(i < numProcessos) {
 		char temp[10];
 		pid_t pid = waitpid(-1, &wstatus, WNOHANG);
 		if(pid > 0 && WIFEXITED(wstatus) > 0){
 			sprintf(temp, "%d", pid);
 			listaSID = listaRemover(temp, listaSID);
-			x--;
+			i--;
 			numProcessos--;
 		}
-		x++;
+		i++;
 	}
 
-	x = 0;
+	i = 0;
 	numProcessos = listaTamanho(listaSID);
-
-	while(x < numProcessos) {
+	// Removendo da lista de sessões processos não filhos da shell
+	while(i < numProcessos) {
 		char temp[10];
-		pid_t pid = (pid_t) atoi(listaGetByIndex(x, listaSID)), pid2;
-		int teste;
-		if((pid2 = waitpid(pid, NULL, WNOHANG)) == -1 && (teste = errno) == ECHILD){
+		pid_t pid = (pid_t) atoi(listaGetByIndex(i, listaSID));
+		if((waitpid(pid, NULL, WNOHANG)) == -1 && errno == ECHILD){
 			sprintf(temp, "%d", pid);
 			listaSID = listaRemover(temp, listaSID);
-			x--;
+			i--;
 			numProcessos--;
 		}
-		printf("\nwaitpid = %d && errno = %d\n", pid2, teste);
-		x++;
+		i++;
 	}
 
 	numProcessos = listaTamanho(listaSID);
 
 	// 'wait' para os processos netos
-	for(int i = 0; i < numProcessos; i++) {
+	for(i = 0; i < numProcessos; i++) {
 		kill( -((pid_t) atoi(listaGetByIndex(i, listaSID))), SIGCHLD );
 	}
 
@@ -290,8 +282,6 @@ int main(void)
 	
 	while(1) {  // Loop do prompt
 
-		listaImprime(listaSID);
-		printf("\n");
 		printf("vsh> ");
 		token[0] = '\0';    // Resetando token
 		indexToken = 0;     // 'indexToken' em 0 indica que token é reescrito
