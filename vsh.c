@@ -290,9 +290,6 @@ int main(void)
 	
 	while(1) {  // Loop do prompt
 
-								  
-		listaImprime(listaSID);
-		printf("\n");			// Debug
 		printf("vsh> ");
 		indexToken = 0;     // 'indexToken' em 0 indica que token é reescrito
 		loop = 1;           // 'loop' em 1 indica que novos caracteres serão lidos
