@@ -182,7 +182,8 @@ Token* armageddon(Token* listaSID)
 		kill( -((pid_t) atoi(listaGetByIndex(i, listaSID))), SIGKILL );
 	}
 	listaSID = listaLibera(listaSID);
-	kill(0, SIGKILL);  // Caso algum processo foreground foi pausado e continuado
+	close(2);
+	kill(0, SIGINT);  // Caso algum processo foreground foi pausado e continuado
 	return listaSID;
 }
 
