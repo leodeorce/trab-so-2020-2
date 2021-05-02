@@ -290,7 +290,10 @@ int main(void)
 	
 	while(1) {  // Loop do prompt
 
+		listaImprime(listaSID);
+		printf("\n");
 		printf("vsh> ");
+		token[0] = '\0';    // Resetando token
 		indexToken = 0;     // 'indexToken' em 0 indica que token é reescrito
 		loop = 1;           // 'loop' em 1 indica que novos caracteres serão lidos
 		background = 0;     // 'background' em 0 indica que ainda não lemos um '|'
@@ -432,9 +435,6 @@ int main(void)
 			grupoBackground[indexListas] = listaLibera(grupoBackground[indexListas]);
 
 		listaTokens = listaInicializa();  // Reinicia a lista auxiliar
-
-		token[0] = '\0';  // Caso um sinal seja recebido e o token não é reiniciado
-		// return 0;
 
 		if(finalizar == 1)	// Saindo do loop principal da shell
 			break;
