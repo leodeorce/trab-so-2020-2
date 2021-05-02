@@ -24,12 +24,15 @@
 
 /**
  *  Executa um comando em foreground
+ *  @param listaTokens Lista de tokens de leitura da entrada
  */
 void executarForeground(Token* listaTokens)
 {
+	// Garante que sinais por teclado afetem apenas o processo filho
 	signal(SIGTSTP, SIG_IGN);
-	signal(SIGINT, SIG_IGN);
+	signal(SIGINT,  SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
+
 	// Cria array com os elementos a serem passados para execvp()
 	char** arrayArgumentos = listaGetTokenArray(listaTokens);
 	int wstatus;
@@ -37,53 +40,55 @@ void executarForeground(Token* listaTokens)
 
 	if(pid == 0) {  // Caso filho
 		signal(SIGTSTP, SIG_DFL);
-		signal(SIGINT, SIG_DFL);
+		signal(SIGINT,  SIG_DFL);
 		signal(SIGQUIT, SIG_DFL);
-		signal(SIGUSR1, SIG_IGN);
-		signal(SIGUSR2, SIG_IGN);
+		signal(SIGUSR1, SIG_IGN);  // Vacinado
+		signal(SIGUSR2, SIG_IGN);  // Vacinado
 		execvp(arrayArgumentos[0], arrayArgumentos);
 	}
 	else if(pid > 0) {  // Caso pai
 		waitpid(pid, &wstatus, WUNTRACED);
 		free(arrayArgumentos);
-		if (WIFEXITED(wstatus) > 0)
-			if(WEXITSTATUS(wstatus) != 0)  // Retorno 0 implícito
+		if (WIFEXITED(wstatus) > 0) {
+			if(WEXITSTATUS(wstatus) != 0)  // Retorno 0 é implícito
 				printf("Filho retornou com código %d\n", WEXITSTATUS(wstatus));
+		}
 		if (WIFSIGNALED(wstatus) > 0)
 			printf("Filho terminou ao receber o sinal %d\n", WTERMSIG(wstatus));
 	}
-	else
+	else  // pid < 0
 		perror("Falha ao executar fork()");
 
 	signal(SIGTSTP, SIG_DFL);
 	signal(SIGQUIT, SIG_DFL);
-	signal(SIGINT, SIG_DFL);
+	signal(SIGINT,  SIG_DFL);
 }
 
 /**
  *  Executa os comandos em background
  *  @param grupoBackground Array de listas de comandos
+ *  @param listaSID Lista de SIDs de sessões background criadas pela shell
  *  @param indexListas Posição da array com a última lista
+ *  @return Lista de SIDs modificada
  */
 Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexListas)
 {
-	char sid[10];
-	char** arrayArgumentos;
+	char sid[10];  // Armazena temporariamente o SID criado por um processo intermediário
+	char** arrayArgumentos; // Armazena uma array de argumentos a ser enviada por 'execvp'
 	pid_t pid = fork();
 
 	if(pid == 0){  // Caso processo intermediário para criar a nova sessão
 		
 		// Processos intermediarios terminando com os SIGUSR's
-
 		signal(SIGUSR1, SIG_DFL);
 		signal(SIGUSR2, SIG_DFL);
 		
 		pid_t pid[5];
 		int   wstatus;
-		int   sigusr = 0;
-		int   fd[4][2];
+		int   sigusr = 0;  // Indica se um processo filho terminou por SIGUSR1/2
+		int   fd[4][2];    // Descritores para no máximo 4 pipes
 
-		setsid();
+		setsid();  // Processo intermediário cria a própria sessão
 		
 		if(pipe(fd[0]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
 		if(pipe(fd[1]) == -1){ fprintf(stderr, "Erro ao criar o pipe\n"); _exit(1); }
@@ -96,7 +101,8 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 			pid[i] = fork();
 
 			if(pid[i] == 0) {
-
+				
+				// Todos leem de um pipe exceto o primeiro processo
 				switch(i) {
 					case 1: dup2(fd[0][LEITURA], 0); break;
 					case 2: dup2(fd[1][LEITURA], 0); break;
@@ -104,10 +110,13 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 					case 4: dup2(fd[3][LEITURA], 0); break;
 				}
 
+				// Todos escrevem em um pipe exceto o último processo
 				if(i != indexListas)
 					dup2(fd[i][ESCRITA], 1);
 				
 				closePipes();
+
+				// O primeiro elemento é sempre o nome do comando
 				execvp(arrayArgumentos[0], arrayArgumentos);
 			}
 
@@ -117,7 +126,7 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 		closePipes();
 		
 		while(1){  // Loop para prender o intermediário
-			// Liberando o intermediário caso nao tenha mais processo para terminar
+			// Liberando o intermediário caso não tenha mais processo para terminar
 			if((waitpid(-1, &wstatus, WNOHANG) == -1) && (errno == ECHILD)){
 				break;
 			}
@@ -133,6 +142,7 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 
 		int i = 0;
         // Libera todas as listas auxiliares para processos background
+			// pois este processo é um fork da shell
         while(i <= indexListas && grupoBackground[i] != NULL) {
             grupoBackground[i] = listaLibera(grupoBackground[i]);
             i++;
@@ -159,6 +169,8 @@ Token* executarBackground(Token** grupoBackground, Token* listaSID, int indexLis
 
 /**
  *  Termina os descendentes
+ *  @param listaSID Lista de SIDs de sessões background criadas pela shell
+ *  @return Lista de SIDs vazia
  */
 Token* armageddon(Token* listaSID)
 {
@@ -170,53 +182,60 @@ Token* armageddon(Token* listaSID)
 		kill( -((pid_t) atoi(listaGetByIndex(i, listaSID))), SIGKILL );
 	}
 	listaSID = listaLibera(listaSID);
-	kill(0, SIGKILL);
+	kill(0, SIGKILL);  // Caso algum processo foreground foi pausado e continuado
 	return listaSID;
 }
 
 /**
  *  Libera descendentes zumbis
+ *  @param listaSID Lista de SIDs de sessões background criadas pela shell
+ *  @return Lista de SIDs modificada
  */
 Token* liberamoita(Token* listaSID)
 {
 	int numProcessos = listaTamanho(listaSID);
 	int wstatus;
-		
 	int i = 0;
+
 	// 'wait' em cada processo intermediário
 	while(i < numProcessos) {
+
 		char temp[10];
-		pid_t pid = waitpid(-1, &wstatus, WNOHANG);
+		pid_t pid = waitpid(-1, &wstatus, WNOHANG); // Resgata zombie
+
+		// Remove o SID da lista caso zombie resgatado
 		if(pid > 0 && WIFEXITED(wstatus) > 0){
 			sprintf(temp, "%d", pid);
 			listaSID = listaRemover(temp, listaSID);
 			i--;
 			numProcessos--;
 		}
+
 		i++;
 	}
 
 	i = 0;
 	numProcessos = listaTamanho(listaSID);
-	// Removendo da lista de sessões processos não filhos da shell
+
+	// Removendo da lista de SIDs itens inválidos
 	while(i < numProcessos) {
+
 		char temp[10];
 		pid_t pid = (pid_t) atoi(listaGetByIndex(i, listaSID));
+
+		// waitpid retorna -1 em caso de erro e errno verifica se isso se deve
+			// à ausência de um filho com o pid buscado
 		if((waitpid(pid, NULL, WNOHANG)) == -1 && errno == ECHILD){
 			sprintf(temp, "%d", pid);
 			listaSID = listaRemover(temp, listaSID);
 			i--;
 			numProcessos--;
 		}
+
 		i++;
 	}
 
 	numProcessos = listaTamanho(listaSID);
-
-	// 'wait' para os processos netos
-	for(i = 0; i < numProcessos; i++) {
-		kill( -((pid_t) atoi(listaGetByIndex(i, listaSID))), SIGCHLD );
-	}
 
 	return listaSID;
 }
@@ -242,7 +261,7 @@ void resetarEntrada(void) {
 
 int main(void)
 {
-	// system("clear");          // Limpa a tela do terminal atual
+	system("clear -x");       // Limpa a tela do terminal atual
 	char   token[MAX_COMMAND_LENGTH];  // Armazena comandos ou argumentos
 	char   charLido = '\n';   // Armazena um caractere lido de stdin
 	int    finalizar = 0;	  // Finaliza a shell
