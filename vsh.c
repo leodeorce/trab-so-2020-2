@@ -27,18 +27,22 @@
  */
 void executarForeground(Token* listaTokens)
 {
+	signal(SIGTSTP, SIG_IGN);
+	signal(SIGINT, SIG_IGN);
 	// Cria array com os elementos a serem passados para execvp()
 	char** arrayArgumentos = listaGetTokenArray(listaTokens);
 	int wstatus;
 	pid_t pid = fork();
 
 	if(pid == 0) {  // Caso filho
+		signal(SIGTSTP, SIG_DFL);
+		signal(SIGINT, SIG_DFL);
 		signal(SIGUSR1, SIG_IGN);
 		signal(SIGUSR2, SIG_IGN);
 		execvp(arrayArgumentos[0], arrayArgumentos);
 	}
 	else if(pid > 0) {  // Caso pai
-		waitpid(pid, &wstatus, 0);
+		waitpid(pid, &wstatus, WUNTRACED);
 		free(arrayArgumentos);
 		if (WIFEXITED(wstatus) > 0)
 			if(WEXITSTATUS(wstatus) != 0)  // Retorno 0 implícito
@@ -48,6 +52,9 @@ void executarForeground(Token* listaTokens)
 	}
 	else
 		perror("Falha ao executar fork()");
+
+	signal(SIGTSTP, SIG_DFL);
+	signal(SIGINT, SIG_DFL);
 }
 
 /**
