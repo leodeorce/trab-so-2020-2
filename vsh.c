@@ -170,7 +170,7 @@ Token* armageddon(Token* listaSID)
 		kill( -((pid_t) atoi(listaGetByIndex(i, listaSID))), SIGKILL );
 	}
 	listaSID = listaLibera(listaSID);
-
+	kill(0, SIGKILL);
 	return listaSID;
 }
 
